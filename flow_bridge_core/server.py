@@ -16,9 +16,26 @@ if TYPE_CHECKING:
 
 def start_ui_server(daemon: FlowBridgeDaemon, port: int = 49231) -> ThreadingHTTPServer:
     """Starts a lightweight local HTTP server for the dashboard UI."""
-    root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    ui_dir = os.path.join(root_dir, "ui")
-    logo_path = os.path.join(root_dir, "assets", "logo.png")
+    core_dir = os.path.dirname(os.path.abspath(__file__))
+    parent_dir = os.path.dirname(core_dir)
+    home_app_dir = os.path.expanduser("~/.flow-bridge")
+    
+    # Candidate UI paths in order of preference
+    ui_candidates = [
+        os.path.join(parent_dir, "ui"),
+        os.path.join(home_app_dir, "ui"),
+        os.path.join(os.path.dirname(parent_dir), "ui"),
+    ]
+    ui_dir = next((p for p in ui_candidates if os.path.exists(os.path.join(p, "index.html"))), ui_candidates[0])
+
+    # Candidate Logo paths in order of preference
+    logo_candidates = [
+        os.path.join(ui_dir, "favicon.png"),
+        os.path.join(parent_dir, "assets", "logo.png"),
+        os.path.join(home_app_dir, "assets", "logo.png"),
+        os.path.join(os.path.dirname(parent_dir), "assets", "logo.png"),
+    ]
+    logo_path = next((p for p in logo_candidates if os.path.exists(p)), logo_candidates[0])
 
     class UIHandler(BaseHTTPRequestHandler):
         def log_message(self, format, *args):
