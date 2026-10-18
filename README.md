@@ -1,7 +1,9 @@
-# Flow Bridge 🎙️
-
-> **Universal macOS Dictation Clipboard Sync Daemon**  
-> *Speak into your favorite voice tool (Wispr Flow, Detta) and press `⌘ + V` anywhere.*
+<div align="center">
+  <img src="assets/logo.png" width="160" height="160" alt="Flow Bridge Logo" style="border-radius: 36px; box-shadow: 0 8px 24px rgba(0,0,0,0.35);" />
+  <h1>Flow Bridge</h1>
+  <p><strong>Universal macOS Dictation Clipboard Sync Daemon</strong><br/>
+  <em>Speak into your favorite voice tool (Wispr Flow, Detta) and press <code>⌘ + V</code> anywhere.</em></p>
+</div>
 
 [![macOS](https://img.shields.io/badge/Platform-macOS-black?logo=apple)](https://apple.com)
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://python.org)
