@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Input Healer Diagnostic & Test Suite</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 24px;
+      background: #0f172a;
+      color: #f1f5f9;
+      line-height: 1.5;
+    }
+    h1 { color: #38bdf8; font-size: 24px; margin-bottom: 8px; }
+    p.subtitle { color: #94a3b8; margin-bottom: 30px; font-size: 14px; }
+    .card {
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .card h2 { font-size: 16px; margin-bottom: 8px; color: #e2e8f0; }
+    .card p { font-size: 13px; color: #94a3b8; margin-bottom: 12px; }
+    input[type="text"], textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 14px;
+      border-radius: 6px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #f8fafc;
+      font-size: 14px;
+      outline: none;
+    }
+    .editable-box {
+      border: 1px dashed #38bdf8;
+      border-radius: 6px;
+      padding: 12px;
+      min-height: 60px;
+      background: #0f172a;
+    }
+    .badge-test {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: #0284c7;
+      color: white;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Input Healer Test Bench</h1>
+  <p class="subtitle">Use this page to test unfreezing, focus recovery, and simulated Wispr Flow pastes.</p>
+
+  <!-- Test 1: Standard Input with Focus Theft Simulation -->
+  <div class="card">
+    <span class="badge-test">Test 1</span>
+    <h2>Standard Input Field (Focus Anchor Test)</h2>
+    <p>Type into this box. Notice how the extension re-asserts focus if focus drifts.</p>
+    <input type="text" id="test-input-1" placeholder="Type something here...">
+  </div>
+
+  <!-- Test 2: Simulated Google AI Studio Prompt Container -->
+  <div class="card">
+    <span class="badge-test">Test 2</span>
+    <h2>Simulated Google AI Studio Prompt Editor</h2>
+    <p>Simulates AI Studio's <code>ms-prompt-editor</code> structure with custom textarea.</p>
+    <div style="position: relative;">
+      <textarea id="ai-studio-sim" rows="4" placeholder="Simulated AI Studio Prompt Box... Try typing or pasting with Cmd+Shift+V"></textarea>
+    </div>
+  </div>
+
+  <!-- Test 3: Rich Text contenteditable box -->
+  <div class="card">
+    <span class="badge-test">Test 3</span>
+    <h2>Rich-Text / Contenteditable Element</h2>
+    <p>Tests native selection collapse and text injection inside rich-text wrappers.</p>
+    <div contenteditable="true" class="editable-box" role="textbox" id="test-editable">
+      Click here or unfreeze this box...
+    </div>
+  </div>
+
+</body>
+</html>

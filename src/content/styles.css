@@ -1,0 +1,81 @@
+// Toast micro-notification styles injected into pages
+#input-healer-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: rgba(20, 24, 33, 0.92);
+  color: #f1f5f9;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 2147483647;
+  opacity: 0;
+  transform: translateY(12px) scale(0.96);
+  pointer-events: none;
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+#input-healer-toast.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+#input-healer-toast.success .icon {
+  color: #10b981;
+}
+
+#input-healer-toast.info .icon {
+  color: #38bdf8;
+}
+
+#input-healer-toast.warning .icon {
+  color: #f59e0b;
+}
+
+/* Subtle focus indicator ring when healed */
+.input-healer-active-pulse {
+  outline: 2px solid #38bdf8 !important;
+  outline-offset: 2px !important;
+  transition: outline 0.3s ease !important;
+}
+
+/* AI Studio Wispr Flow Quick Button */
+#wispr-flow-smart-paste-btn {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  z-index: 1000;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #38bdf8;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(6px);
+  user-select: none;
+}
+
+#wispr-flow-smart-paste-btn:hover {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: #38bdf8;
+  transform: translateY(-1px);
+}
+
+#wispr-flow-smart-paste-btn:active {
+  transform: translateY(0);
+}
+

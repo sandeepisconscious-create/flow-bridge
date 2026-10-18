@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Input Healer</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <header class="header">
+      <div class="logo">
+        <span class="icon">⚡</span>
+        <h1>Input Healer</h1>
+      </div>
+      <span class="badge" id="site-badge">Active</span>
+    </header>
+
+    <div class="quick-actions">
+      <button id="btn-unfreeze" class="primary-btn">
+        <span>🔄 Unfreeze Active Field</span>
+        <kbd id="unfreeze-key">Alt+Shift+F</kbd>
+      </button>
+
+      <button id="btn-wispr-paste" class="secondary-btn">
+        <span>🎙️ Wispr Smart Paste</span>
+        <kbd id="paste-key">⌘+Shift+V</kbd>
+      </button>
+    </div>
+
+    <hr class="divider">
+
+    <div class="settings-group">
+      <h2>Features & Automation</h2>
+
+      <label class="toggle-item">
+        <div class="toggle-text">
+          <span class="toggle-title">Google AI Studio Adapter</span>
+          <span class="toggle-desc">Auto-anchors focus & catches Wispr Flow dictation</span>
+        </div>
+        <input type="checkbox" id="toggle-aistudio" checked>
+        <span class="slider"></span>
+      </label>
+
+      <label class="toggle-item">
+        <div class="toggle-text">
+          <span class="toggle-title">Universal Input Unfreezer</span>
+          <span class="toggle-desc">Heals dropped keystrokes across all web apps</span>
+        </div>
+        <input type="checkbox" id="toggle-universal" checked>
+        <span class="slider"></span>
+      </label>
+
+      <label class="toggle-item">
+        <div class="toggle-text">
+          <span class="toggle-title">Floating Visual Indicator</span>
+          <span class="toggle-desc">Show subtle confirmation when input is repaired</span>
+        </div>
+        <input type="checkbox" id="toggle-visual" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <footer class="footer">
+      <span id="status-text">Ready & Monitoring</span>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
