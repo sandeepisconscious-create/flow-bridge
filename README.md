@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/logo.png" width="140" alt="Flow Bridge Logo" />
+  <img src="assets/logo.png" width="128" height="128" alt="Flow Bridge Logo" style="border-radius: 28px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);" />
   <h1>Flow Bridge</h1>
   <p><strong>Universal macOS Dictation Clipboard Sync Daemon</strong><br/>
   <em>Speak into your favorite voice tool (Wispr Flow, Handy, Detta) and press <code>⌘ + V</code> anywhere.</em></p>
