@@ -17,6 +17,10 @@
       --text-dim: #52525b;
       --green: #22c55e;
       --green-dim: rgba(34, 197, 94, 0.12);
+      --amber: #f59e0b;
+      --amber-dim: rgba(245, 158, 11, 0.12);
+      --blue: #3b82f6;
+      --blue-dim: rgba(59, 130, 246, 0.15);
       --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, sans-serif;
       --font-mono: "SF Mono", Menlo, Monaco, Consolas, monospace;
     }
@@ -34,7 +38,7 @@
       font-family: var(--font-sans);
       font-size: 13px;
       line-height: 1.5;
-      padding: 20px;
+      padding: 18px 20px 20px;
       max-width: 680px;
       margin: 0 auto;
       user-select: none;
@@ -46,8 +50,8 @@
       align-items: center;
       justify-content: space-between;
       gap: 16px;
-      padding-bottom: 16px;
-      margin-bottom: 20px;
+      padding-bottom: 14px;
+      margin-bottom: 16px;
       border-bottom: 1px solid var(--border);
     }
 
@@ -78,13 +82,19 @@
       color: var(--text-muted);
     }
 
-    /* Compact Header Engines Cluster */
+    /* Controls in header */
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
     .header-engines {
       display: flex;
       align-items: center;
-      gap: 6px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
+      gap: 5px;
     }
 
     .engine-chip {
@@ -119,12 +129,146 @@
       background: var(--text-dim);
     }
 
+    /* Pause / Resume button */
+    .sync-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .sync-toggle-btn:hover {
+      border-color: var(--border-hover);
+      background: #18181c;
+    }
+
+    .sync-toggle-btn.paused {
+      border-color: rgba(245, 158, 11, 0.35);
+      color: var(--amber);
+      background: var(--amber-dim);
+    }
+
+    .sync-indicator {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
+    }
+
+    .sync-toggle-btn.paused .sync-indicator {
+      background: var(--amber);
+      box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+    }
+
+    /* Search & Filter Bar */
+    .search-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .search-wrapper {
+      position: relative;
+      flex: 1;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      pointer-events: none;
+    }
+
+    .search-input {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 6px 10px 6px 32px;
+      font-size: 12px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s ease;
+      font-family: inherit;
+    }
+
+    .search-input:focus {
+      border-color: #3b82f6;
+    }
+
+    .search-input::placeholder {
+      color: var(--text-dim);
+    }
+
+    /* Update Banner (Shown when update is available) */
+    .update-banner {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: #111a2e;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-bottom: 14px;
+      font-size: 12px;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .update-banner.visible {
+      display: flex;
+    }
+
+    .update-title {
+      font-weight: 500;
+      color: #93c5fd;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .update-btn {
+      background: #2563eb;
+      color: #ffffff;
+      border: none;
+      border-radius: 5px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s ease;
+    }
+
+    .update-btn:hover {
+      background: #1d4ed8;
+    }
+
+    .update-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
     /* Section Bar */
     .section-bar {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
 
     .section-title {
@@ -155,6 +299,7 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
+      min-height: 120px;
     }
 
     .feed-item {
@@ -250,7 +395,7 @@
     /* Empty state */
     .empty-state {
       text-align: center;
-      padding: 36px 20px;
+      padding: 32px 20px;
       color: var(--text-dim);
       font-size: 12px;
       border: 1px dashed var(--border);
@@ -268,11 +413,37 @@
       font-size: 11px;
       color: var(--text-dim);
     }
+
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .check-update-link {
+      background: none;
+      border: none;
+      padding: 0;
+      color: var(--text-muted);
+      cursor: pointer;
+      text-decoration: underline;
+      font-size: 11px;
+      font-family: inherit;
+    }
+
+    .check-update-link:hover {
+      color: var(--text);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
 <body>
 
-  <!-- Header with Brand on Left and Engine Chips on Right -->
+  <!-- Header with Brand on Left and Engines + Pause on Right -->
   <header class="header">
     <div class="brand">
       <img src="/logo.png" alt="Logo" class="brand-icon">
@@ -281,10 +452,37 @@
         <div class="brand-subtitle">Universal Dictation Copy</div>
       </div>
     </div>
-    <div class="header-engines" id="header-engines">
-      <!-- Populated dynamically without layout jumps -->
+    <div class="header-actions">
+      <button class="sync-toggle-btn" id="sync-toggle-btn" onclick="togglePause()" title="Click to pause/resume auto clipboard sync">
+        <span class="sync-indicator"></span>
+        <span id="sync-toggle-text">Active</span>
+      </button>
+      <div class="header-engines" id="header-engines">
+        <!-- Populated dynamically -->
+      </div>
     </div>
   </header>
+
+  <!-- Auto-Update Notification Banner -->
+  <div class="update-banner" id="update-banner">
+    <div class="update-title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4"/><path d="M12 16V8"/></svg>
+      <span>Flow Bridge <span id="update-version-text">v1.0.9</span> is available!</span>
+    </div>
+    <button class="update-btn" id="update-action-btn" onclick="startAutoUpdate()">
+      <span>Install Update</span>
+    </button>
+  </div>
+
+  <!-- Search Filter Input -->
+  <div class="search-row">
+    <div class="search-wrapper">
+      <svg class="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+      </svg>
+      <input type="text" class="search-input" id="search-input" placeholder="Search dictation history..." oninput="onSearchChange(this.value)">
+    </div>
+  </div>
 
   <!-- Recent Dictation Feed -->
   <div class="section-bar">
@@ -296,9 +494,13 @@
     <!-- Populated by JS -->
   </div>
 
-  <!-- Minimal Footer -->
+  <!-- Minimal Footer with Check for Updates -->
   <footer class="footer">
-    <span>Background clipboard sync</span>
+    <div class="footer-left">
+      <span id="app-version-label">v1.0.8</span>
+      <span>•</span>
+      <button class="check-update-link" id="check-update-btn" onclick="manualCheckUpdate()">Check for updates</button>
+    </div>
     <span>Auto-settle & hold active</span>
   </footer>
 
@@ -306,19 +508,125 @@
     const copySvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
     const checkSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 
-    let lastHistoryHash = '';
+    let rawHistoryItems = [];
+    let currentSearchTerm = '';
+    let lastRenderHash = '';
     let lastAppsHash = '';
+    let isPaused = false;
+    let updateData = null;
 
     async function fetchState() {
       try {
         const res = await fetch('/api/state');
         if (!res.ok) return;
         const data = await res.json();
+        
+        if (data.version) {
+          document.getElementById('app-version-label').textContent = 'v' + data.version;
+        }
+
+        updatePauseButton(data.paused);
         renderApps(data.apps);
-        renderHistory(data.history);
+        rawHistoryItems = data.history || [];
+        renderFilteredHistory();
+
+        if (data.update) {
+          handleUpdateState(data.update);
+        }
       } catch (e) {
         // network or server restart
       }
+    }
+
+    function updatePauseButton(paused) {
+      isPaused = !!paused;
+      const btn = document.getElementById('sync-toggle-btn');
+      const text = document.getElementById('sync-toggle-text');
+      if (btn && text) {
+        if (isPaused) {
+          btn.classList.add('paused');
+          text.textContent = 'Paused';
+          btn.title = 'Sync is paused. Click to resume copying dictations.';
+        } else {
+          btn.classList.remove('paused');
+          text.textContent = 'Active';
+          btn.title = 'Sync is active. Click to pause.';
+        }
+      }
+    }
+
+    async function togglePause() {
+      try {
+        const res = await fetch('/api/toggle-pause');
+        if (res.ok) {
+          const data = await res.json();
+          updatePauseButton(data.paused);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function handleUpdateState(info) {
+      updateData = info;
+      const banner = document.getElementById('update-banner');
+      const verText = document.getElementById('update-version-text');
+      if (info && info.has_update) {
+        verText.textContent = 'v' + info.latest_version;
+        banner.classList.add('visible');
+      } else {
+        banner.classList.remove('visible');
+      }
+    }
+
+    async function manualCheckUpdate() {
+      const btn = document.getElementById('check-update-btn');
+      btn.textContent = 'Checking...';
+      try {
+        const res = await fetch('/api/check-update');
+        if (res.ok) {
+          const info = await res.json();
+          handleUpdateState(info);
+          if (info.has_update) {
+            btn.textContent = 'Update available!';
+          } else {
+            btn.textContent = 'Up to date';
+            setTimeout(() => { btn.textContent = 'Check for updates'; }, 3000);
+          }
+        }
+      } catch (e) {
+        btn.textContent = 'Check failed';
+        setTimeout(() => { btn.textContent = 'Check for updates'; }, 3000);
+      }
+    }
+
+    async function startAutoUpdate() {
+      const btn = document.getElementById('update-action-btn');
+      btn.disabled = true;
+      btn.innerHTML = `<span>Updating...</span>`;
+      try {
+        const res = await fetch('/api/auto-update');
+        const result = await res.json();
+        if (result.success) {
+          btn.innerHTML = `<span>Installed! Restarting...</span>`;
+          setTimeout(() => {
+            window.location.reload();
+          }, 3000);
+        } else {
+          btn.disabled = false;
+          btn.innerHTML = `<span>Retry Update</span>`;
+          alert('Update failed: ' + (result.error || 'Unknown error'));
+        }
+      } catch (e) {
+        btn.disabled = false;
+        btn.innerHTML = `<span>Retry</span>`;
+        alert('Update request failed: ' + e);
+      }
+    }
+
+    function onSearchChange(val) {
+      currentSearchTerm = (val || '').trim().toLowerCase();
+      renderFilteredHistory(true);
     }
 
     function renderApps(apps) {
@@ -338,22 +646,33 @@
       `).join('');
     }
 
-    function renderHistory(items) {
-      if (!items) return;
-      // Only re-render when dictations actually change to prevent hover-glitching
-      const hash = JSON.stringify(items.map(i => i.id + i.text));
-      if (hash === lastHistoryHash) return;
-      lastHistoryHash = hash;
+    function renderFilteredHistory(force = false) {
+      let filtered = rawHistoryItems;
+      if (currentSearchTerm) {
+        filtered = rawHistoryItems.filter(item => 
+          (item.text && item.text.toLowerCase().includes(currentSearchTerm)) ||
+          (item.source && item.source.toLowerCase().includes(currentSearchTerm))
+        );
+      }
+
+      // Content hash check to avoid hover flicker during polling
+      const hash = currentSearchTerm + '::' + JSON.stringify(filtered.map(i => i.id + i.text));
+      if (!force && hash === lastRenderHash) return;
+      lastRenderHash = hash;
 
       const container = document.getElementById('history-container');
       if (!container) return;
 
-      if (items.length === 0) {
-        container.innerHTML = `<div class="empty-state">No dictations recorded yet. Speak into Wispr Flow, Handy, or Detta.</div>`;
+      if (filtered.length === 0) {
+        if (currentSearchTerm) {
+          container.innerHTML = `<div class="empty-state">No dictations match "${escapeHtml(currentSearchTerm)}".</div>`;
+        } else {
+          container.innerHTML = `<div class="empty-state">No dictations recorded yet. Speak into Wispr Flow, Handy, or Detta.</div>`;
+        }
         return;
       }
 
-      container.innerHTML = items.map((item, idx) => `
+      container.innerHTML = filtered.map((item, idx) => `
         <div class="feed-item">
           <div class="feed-body">
             <div class="feed-text">${escapeHtml(item.text)}</div>
@@ -369,11 +688,11 @@
         </div>
       `).join('');
 
-      window._items = items;
+      window._currentFiltered = filtered;
     }
 
     function copyText(idx, btn) {
-      const item = window._items?.[idx];
+      const item = window._currentFiltered?.[idx];
       if (!item) return;
 
       navigator.clipboard.writeText(item.text).then(() => {
@@ -387,6 +706,7 @@
     }
 
     function escapeHtml(str) {
+      if (!str) return '';
       const div = document.createElement('div');
       div.textContent = str;
       return div.innerHTML;

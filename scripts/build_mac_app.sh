@@ -195,9 +195,9 @@ cat <<EOF > "$APP_PATH/Contents/Info.plist"
     <key>CFBundleIdentifier</key>
     <string>com.flowbridge.app</string>
     <key>CFBundleVersion</key>
-    <string>1.0.6</string>
+    <string>1.0.8</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.6</string>
+    <string>1.0.8</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleExecutable</key>

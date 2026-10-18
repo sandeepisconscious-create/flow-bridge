@@ -26,6 +26,9 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import List, Optional, Tuple
 
+CURRENT_VERSION = "1.0.8"
+GITHUB_REPO = "sandeepisconscious-create/flow-bridge"
+
 LOCK_FILE_PATH = os.path.expanduser("~/.flow_bridge.lock")
 
 
@@ -276,6 +279,98 @@ class FlowBridgeDaemon:
             HandyWatcher(config.handy_db),
         ]
         self._running = True
+        self._paused = False
+        self._cached_update_info: Optional[dict] = None
+        self._last_update_check: float = 0.0
+
+    def set_paused(self, paused: bool) -> bool:
+        self._paused = paused
+        if self.config.verbose:
+            print(f"[Flow Bridge] Sync {'PAUSED' if self._paused else 'RESUMED'}")
+        return self._paused
+
+    def is_paused(self) -> bool:
+        return self._paused
+
+    def check_for_update(self, force: bool = False) -> dict:
+        """Queries GitHub Releases API for new version."""
+        now = time.time()
+        # Cache results for 10 minutes unless forced
+        if not force and self._cached_update_info and (now - self._last_update_check < 600):
+            return self._cached_update_info
+
+        try:
+            import urllib.request
+            url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+            req = urllib.request.Request(url, headers={"User-Agent": "FlowBridge-Updater"})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                if resp.status == 200:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    latest_tag = data.get("tag_name", "").lstrip("v")
+                    html_url = data.get("html_url", "")
+                    assets = data.get("assets", [])
+                    dmg_download = ""
+                    for asset in assets:
+                        if asset.get("name", "").endswith(".dmg"):
+                            dmg_download = asset.get("browser_download_url", "")
+                            break
+
+                    has_update = False
+                    if latest_tag:
+                        try:
+                            # Compare semantic versions
+                            curr_parts = [int(p) for p in CURRENT_VERSION.split(".")]
+                            late_parts = [int(p) for p in latest_tag.split(".")]
+                            has_update = late_parts > curr_parts
+                        except Exception:
+                            has_update = latest_tag != CURRENT_VERSION
+
+                    self._cached_update_info = {
+                        "current_version": CURRENT_VERSION,
+                        "latest_version": latest_tag,
+                        "has_update": has_update,
+                        "release_url": html_url,
+                        "download_url": dmg_download,
+                        "checked_at": datetime.now().strftime("%I:%M %p")
+                    }
+                    self._last_update_check = now
+                    return self._cached_update_info
+        except Exception as e:
+            pass
+
+        return {
+            "current_version": CURRENT_VERSION,
+            "latest_version": CURRENT_VERSION,
+            "has_update": False,
+            "checked_at": datetime.now().strftime("%I:%M %p")
+        }
+
+    def perform_auto_update(self) -> dict:
+        """Downloads latest DMG and automatically installs it."""
+        info = self.check_for_update(force=True)
+        dmg_url = info.get("download_url")
+        if not dmg_url:
+            return {"success": False, "error": "No DMG download URL found"}
+
+        try:
+            import urllib.request
+            tmp_dmg = "/tmp/FlowBridge-Latest.dmg"
+            urllib.request.urlretrieve(dmg_url, tmp_dmg)
+
+            # Mount DMG, copy app to /Applications, unmount
+            cmd = f"""
+            MOUNT=$(hdiutil attach "{tmp_dmg}" -nobrowse -noautoopen | grep -o '/Volumes/Flow Bridge.*' | head -n 1)
+            if [ -n "$MOUNT" ]; then
+                cp -R "$MOUNT/FlowBridge.app" /Applications/
+                xattr -cr /Applications/FlowBridge.app 2>/dev/null || true
+                hdiutil detach "$MOUNT" -force 2>/dev/null || true
+            fi
+            rm -f "{tmp_dmg}"
+            """
+            subprocess.run(cmd, shell=True, check=True)
+            return {"success": True, "message": f"Updated to v{info.get('latest_version')}!"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     def _setup_signal_handlers(self) -> None:
         def handle_stop(signum, frame):
@@ -361,10 +456,40 @@ class FlowBridgeDaemon:
                         return
                 elif self.path == "/api/state":
                     data = {
+                        "version": CURRENT_VERSION,
+                        "paused": daemon_self.is_paused(),
                         "apps": daemon_self.get_app_status(),
-                        "history": daemon_self.get_recent_history(limit=10)
+                        "history": daemon_self.get_recent_history(limit=25),
+                        "update": daemon_self.check_for_update()
                     }
                     body = json.dumps(data).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self.send_header("Access-Control-Allow-Origin", "*")
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+                elif self.path == "/api/toggle-pause":
+                    new_state = daemon_self.set_paused(not daemon_self.is_paused())
+                    body = json.dumps({"paused": new_state}).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self.send_header("Access-Control-Allow-Origin", "*")
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+                elif self.path == "/api/check-update":
+                    info = daemon_self.check_for_update(force=True)
+                    body = json.dumps(info).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self.send_header("Access-Control-Allow-Origin", "*")
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+                elif self.path == "/api/auto-update":
+                    res = daemon_self.perform_auto_update()
+                    body = json.dumps(res).encode("utf-8")
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json; charset=utf-8")
                     self.send_header("Access-Control-Allow-Origin", "*")
@@ -447,30 +572,33 @@ class FlowBridgeDaemon:
                     if winner.unique_id != last_copied_id:
                         last_copied_id = winner.unique_id
 
-                        # 1. Immediate primary clipboard sync
-                        PasteboardManager.set_clipboard(winner.text)
-
-                        # 2. Wait out target app's internal synthetic paste and cleanup routine
-                        if self.config.settle_delay_sec > 0:
-                            time.sleep(self.config.settle_delay_sec)
-
-                        # 3. Anti-race-condition settle & hold: Re-assert clipboard
-                        for _ in range(self.config.reassert_attempts):
+                        if not self.is_paused():
+                            # 1. Immediate primary clipboard sync
                             PasteboardManager.set_clipboard(winner.text)
-                            if self.config.reassert_interval_sec > 0:
-                                time.sleep(self.config.reassert_interval_sec)
 
-                        # Log sync event
-                        timestamp_str = datetime.fromtimestamp(winner.timestamp).strftime("%H:%M:%S")
-                        preview = (winner.text[:75] + "…") if len(winner.text) > 75 else winner.text
-                        print(f"[{timestamp_str}] 🎙️ [{winner.source_name} Synced -> Clipboard]: {preview}", flush=True)
+                            # 2. Wait out target app's internal synthetic paste and cleanup routine
+                            if self.config.settle_delay_sec > 0:
+                                time.sleep(self.config.settle_delay_sec)
 
-                        if self.config.show_notifications:
-                            Notifier.notify(
-                                title="Flow Bridge",
-                                subtitle=f"{winner.source_name} Synced",
-                                message=winner.text
-                            )
+                            # 3. Anti-race-condition settle & hold: Re-assert clipboard
+                            for _ in range(self.config.reassert_attempts):
+                                PasteboardManager.set_clipboard(winner.text)
+                                if self.config.reassert_interval_sec > 0:
+                                    time.sleep(self.config.reassert_interval_sec)
+
+                            # Log sync event
+                            timestamp_str = datetime.fromtimestamp(winner.timestamp).strftime("%H:%M:%S")
+                            preview = (winner.text[:75] + "…") if len(winner.text) > 75 else winner.text
+                            print(f"[{timestamp_str}] 🎙️ [{winner.source_name} Synced -> Clipboard]: {preview}", flush=True)
+
+                            if self.config.show_notifications:
+                                Notifier.notify(
+                                    title="Flow Bridge",
+                                    subtitle=f"{winner.source_name} Synced",
+                                    message=winner.text
+                                )
+                        elif self.config.verbose:
+                            print(f"[Flow Bridge] Skipped sync because Flow Bridge is paused: {winner.unique_id}")
 
                 time.sleep(self.config.poll_interval_sec)
             except KeyboardInterrupt:
