@@ -3,67 +3,103 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Input Healer</title>
+  <title>Flow Bridge</title>
   <link rel="stylesheet" href="popup.css">
 </head>
-<body>
-  <div class="popup-container">
-    <header class="header">
-      <div class="logo">
-        <span class="icon">⚡</span>
-        <h1>Input Healer</h1>
+<body class="dark">
+  <div class="card">
+    <!-- Header -->
+    <div class="card-header">
+      <div class="header-left">
+        <div class="icon-wrapper">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="4 7 4 4 20 4 20 7"></polyline>
+            <line x1="9" y1="20" x2="15" y2="20"></line>
+            <line x1="12" y1="4" x2="12" y2="20"></line>
+          </svg>
+        </div>
+        <div>
+          <h1 class="card-title">Flow Bridge</h1>
+          <p class="card-description">Input & Dictation Healer</p>
+        </div>
       </div>
-      <span class="badge" id="site-badge">Active</span>
-    </header>
-
-    <div class="quick-actions">
-      <button id="btn-unfreeze" class="primary-btn">
-        <span>🔄 Unfreeze Active Field</span>
-        <kbd id="unfreeze-key">Alt+Shift+F</kbd>
-      </button>
-
-      <button id="btn-wispr-paste" class="secondary-btn">
-        <span>🎙️ Wispr Smart Paste</span>
-        <kbd id="paste-key">⌘+Shift+V</kbd>
-      </button>
+      <div class="badge-success" id="site-badge">
+        <span class="status-dot"></span> Active
+      </div>
     </div>
 
-    <hr class="divider">
+    <!-- Quick Actions -->
+    <div class="card-content">
+      <div class="button-group">
+        <button id="btn-unfreeze" class="btn btn-default">
+          <span class="btn-inner">
+            <svg class="btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+            </svg>
+            <span>Unfreeze Field</span>
+          </span>
+          <kbd class="kbd">⌥⇧F</kbd>
+        </button>
 
-    <div class="settings-group">
-      <h2>Features & Automation</h2>
+        <button id="btn-wispr-paste" class="btn btn-outline">
+          <span class="btn-inner">
+            <svg class="btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="22"/>
+            </svg>
+            <span>Wispr Smart Paste</span>
+          </span>
+          <kbd class="kbd">⌘⇧V</kbd>
+        </button>
+      </div>
 
-      <label class="toggle-item">
-        <div class="toggle-text">
-          <span class="toggle-title">Google AI Studio Adapter</span>
-          <span class="toggle-desc">Auto-anchors focus & catches Wispr Flow dictation</span>
+      <div class="separator"></div>
+
+      <!-- Settings List -->
+      <div class="settings-section">
+        <div class="section-title">Automation & Adapters</div>
+
+        <div class="toggle-row">
+          <div class="toggle-label">
+            <label for="toggle-aistudio">Google AI Studio</label>
+            <p>Auto-anchors focus & catches dictation</p>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="toggle-aistudio" checked>
+            <span class="switch-slider"></span>
+          </label>
         </div>
-        <input type="checkbox" id="toggle-aistudio" checked>
-        <span class="slider"></span>
-      </label>
 
-      <label class="toggle-item">
-        <div class="toggle-text">
-          <span class="toggle-title">Universal Input Unfreezer</span>
-          <span class="toggle-desc">Heals dropped keystrokes across all web apps</span>
+        <div class="toggle-row">
+          <div class="toggle-label">
+            <label for="toggle-universal">Universal Unfreezer</label>
+            <p>Recovers dropped keys on all web apps</p>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="toggle-universal" checked>
+            <span class="switch-slider"></span>
+          </label>
         </div>
-        <input type="checkbox" id="toggle-universal" checked>
-        <span class="slider"></span>
-      </label>
 
-      <label class="toggle-item">
-        <div class="toggle-text">
-          <span class="toggle-title">Floating Visual Indicator</span>
-          <span class="toggle-desc">Show subtle confirmation when input is repaired</span>
+        <div class="toggle-row">
+          <div class="toggle-label">
+            <label for="toggle-visual">Visual Pulse</label>
+            <p>Subtle highlight when element is revived</p>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="toggle-visual" checked>
+            <span class="switch-slider"></span>
+          </label>
         </div>
-        <input type="checkbox" id="toggle-visual" checked>
-        <span class="slider"></span>
-      </label>
+      </div>
     </div>
 
-    <footer class="footer">
-      <span id="status-text">Ready & Monitoring</span>
-    </footer>
+    <!-- Footer -->
+    <div class="card-footer">
+      <span class="footer-status" id="status-text">Ready & Monitoring</span>
+      <span class="version-tag">v1.0.0</span>
+    </div>
   </div>
 
   <script src="popup.js"></script>
