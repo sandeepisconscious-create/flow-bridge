@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Build FlowBridge.app and FlowBridge-Installer.dmg
+# Build FlowBridge.app and FlowBridge-Installer.dmg with custom icons & layout
 # ==============================================================================
 
 set -euo pipefail
@@ -12,6 +12,7 @@ APP_NAME="FlowBridge.app"
 APP_PATH="$DIST_DIR/$APP_NAME"
 DMG_NAME="FlowBridge-Installer.dmg"
 DMG_PATH="$DIST_DIR/$DMG_NAME"
+ICON_PATH="$REPO_ROOT/assets/FlowBridge.icns"
 
 echo "🔨 Building FlowBridge macOS Application bundle..."
 
@@ -19,7 +20,6 @@ rm -rf "$DIST_DIR"
 mkdir -p "$DIST_DIR"
 
 # 1. Compile AppleScript launcher into a macOS Application bundle (.app)
-# When launched, it installs the permanent user LaunchAgent and runs the sync engine.
 APPLESCRIPT_SOURCE="
 on run
     set appDir to (POSIX path of (path to me))
@@ -47,6 +47,13 @@ mkdir -p "$RESOURCES_DIR"
 cp "$REPO_ROOT/flow_bridge.py" "$RESOURCES_DIR/flow_bridge.py"
 chmod +x "$RESOURCES_DIR/flow_bridge.py"
 
+# Apply custom app icon (.icns)
+if [[ -f "$ICON_PATH" ]]; then
+    echo " • Applying FlowBridge.icns custom app icon..."
+    cp "$ICON_PATH" "$RESOURCES_DIR/applet.icns"
+    cp "$ICON_PATH" "$RESOURCES_DIR/FlowBridge.icns"
+fi
+
 # Update Info.plist:
 # LSUIElement = 1 makes it an invisible background agent (NO Dock icon clutter!)
 PLIST_PATH="$APP_PATH/Contents/Info.plist"
@@ -54,29 +61,79 @@ PLIST_PATH="$APP_PATH/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Flow Bridge" "$PLIST_PATH" 2>/dev/null || true
 /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.flowbridge.app" "$PLIST_PATH" 2>/dev/null || true
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.0.0" "$PLIST_PATH" 2>/dev/null || true
-/usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" "$PLIST_PATH" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :LSUIElement true" "$PLIST_PATH" 2>/dev/null || true
+/usr/libexec/PlistBuddy -c "Set :CFBundleIconFile FlowBridge.icns" "$PLIST_PATH" 2>/dev/null || \
+/usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string FlowBridge.icns" "$PLIST_PATH" 2>/dev/null || true
+/usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" "$PLIST_PATH" 2>/dev/null || \
+/usr/libexec/PlistBuddy -c "Set :LSUIElement true" "$PLIST_PATH" 2>/dev/null || true
 
-# 3. Create distributable DMG with classic drag-and-drop layout
+# Refresh bundle icon cache
+touch "$APP_PATH"
+
+# 3. Create writable DMG staging image
 echo "📦 Packaging into distributable Drag-and-Drop DMG..."
-DMG_STAGING="$DIST_DIR/dmg_staging"
-mkdir -p "$DMG_STAGING"
-cp -R "$APP_PATH" "$DMG_STAGING/"
+DMG_TEMP="$DIST_DIR/temp.dmg"
+rm -f "$DMG_TEMP" "$DMG_PATH"
 
-# Add Applications shortcut link
-ln -s /Applications "$DMG_STAGING/Applications"
+# Create temporary writable DMG
+hdiutil create -size 32m -fs HFS+ -volname "Flow Bridge" "$DMG_TEMP"
 
-# Set DMG volume icon and background layout instructions
-cat <<EOF > "$DMG_STAGING/Install Instructions.txt"
-Flow Bridge - Drag & Drop Installation
-======================================
+# Mount temporary DMG
+MOUNT_DIR=$(hdiutil attach -readwrite -noverify -noautoopen "$DMG_TEMP" | grep -o '/Volumes/Flow Bridge.*' | head -n 1)
 
-1. Drag FlowBridge.app into the Applications folder shortcut.
-2. Open Applications and double-click FlowBridge.app once.
-3. That's it! It runs silently in the background and auto-starts on login.
+if [[ -z "$MOUNT_DIR" || ! -d "$MOUNT_DIR" ]]; then
+    echo "Failed to mount staging DMG." >&2
+    exit 1
+fi
+
+echo " • Mounted at: $MOUNT_DIR"
+
+# Copy App and link Applications folder
+cp -R "$APP_PATH" "$MOUNT_DIR/"
+ln -s /Applications "$MOUNT_DIR/Applications"
+
+# Set volume icon if available
+if [[ -f "$ICON_PATH" ]]; then
+    cp "$ICON_PATH" "$MOUNT_DIR/.VolumeIcon.icns"
+    # Set custom icon flag on volume root
+    SetFile -a C "$MOUNT_DIR" 2>/dev/null || true
+fi
+
+# 4. Use AppleScript to style the Finder window (140px icons, side-by-side, compact 560x360 window)
+echo " • Configuring Finder window layout..."
+osascript <<EOF || true
+tell application "Finder"
+    tell disk "Flow Bridge"
+        open
+        set current view of container window to icon view
+        set toolbar visible of container window to false
+        set statusbar visible of container window to false
+        set the bounds of container window to {400, 200, 960, 560}
+        
+        set viewOptions to the icon view options of container window
+        set icon size of viewOptions to 128
+        set text size of viewOptions to 13
+        set label position of viewOptions to bottom
+        set arrangement of viewOptions to not arranged
+        
+        -- Place FlowBridge on the left, Applications on the right
+        set position of item "FlowBridge.app" of container window to {140, 160}
+        set position of item "Applications" of container window to {420, 160}
+        
+        close
+        open
+        delay 1
+    end tell
+end tell
 EOF
 
-hdiutil create -volname "Flow Bridge" -srcfolder "$DMG_STAGING" -ov -format UDZO "$DMG_PATH"
-rm -rf "$DMG_STAGING"
+# Sync and unmount
+sync
+diskutil eject "$MOUNT_DIR" || hdiutil detach "$MOUNT_DIR" -force
+
+# 5. Convert to compressed, read-only final DMG
+echo " • Compressing into final UDZO DMG..."
+hdiutil convert "$DMG_TEMP" -format UDZO -imagekey zlib-level=9 -o "$DMG_PATH"
+rm -f "$DMG_TEMP"
 
 echo ""
 echo "✅ Build Complete!"
