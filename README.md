@@ -65,13 +65,13 @@ You can also run the daemon directly from the command line:
 
 ```bash
 # Run in foreground
-./wispr_clipboard_sync.py
+./flow_bridge.py
 
 # Run with macOS notification banners on each sync
-./wispr_clipboard_sync.py --notify
+./flow_bridge.py --notify
 
 # Test clipboard write/read integration
-./wispr_clipboard_sync.py --test-clipboard
+./flow_bridge.py --test-clipboard
 ```
 
 ### CLI Arguments

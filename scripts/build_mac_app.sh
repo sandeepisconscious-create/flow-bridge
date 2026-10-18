@@ -23,11 +23,11 @@ mkdir -p "$DIST_DIR"
 APPLESCRIPT_SOURCE="
 on run
     set appDir to (POSIX path of (path to me))
-    set scriptDir to appDir & \"Contents/Resources/wispr_clipboard_sync.py\"
+    set scriptDir to appDir & \"Contents/Resources/flow_bridge.py\"
     set pyBin to do shell script \"which python3 || echo /usr/bin/python3\"
     set userHome to (POSIX path of (path to home folder))
     set targetDir to userHome & \".flow-bridge\"
-    set targetScript to targetDir & \"/wispr_clipboard_sync.py\"
+    set targetScript to targetDir & \"/flow_bridge.py\"
     
     -- Auto-install into ~/.flow-bridge so the DMG volume doesn't stay locked
     do shell script \"mkdir -p \" & quoted form of targetDir & \" && cp \" & quoted form of scriptDir & \" \" & quoted form of targetScript & \" && chmod +x \" & quoted form of targetScript
@@ -44,8 +44,8 @@ osacompile -e "$APPLESCRIPT_SOURCE" -o "$APP_PATH"
 # 2. Bundle python sync engine inside the app's Resources directory
 RESOURCES_DIR="$APP_PATH/Contents/Resources"
 mkdir -p "$RESOURCES_DIR"
-cp "$REPO_ROOT/wispr_clipboard_sync.py" "$RESOURCES_DIR/wispr_clipboard_sync.py"
-chmod +x "$RESOURCES_DIR/wispr_clipboard_sync.py"
+cp "$REPO_ROOT/flow_bridge.py" "$RESOURCES_DIR/flow_bridge.py"
+chmod +x "$RESOURCES_DIR/flow_bridge.py"
 
 # Update Info.plist:
 # LSUIElement = 1 makes it an invisible background agent (NO Dock icon clutter!)

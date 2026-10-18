@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Flow Bridge: Universal Dictation Clipboard Sync Daemon
+Flow Bridge: Universal Voice Dictation Clipboard Sync Daemon
 - Concurrently monitors Wispr Flow, Detta, and extensible local voice dictation databases.
 - Auto-detects newly transcribed speech across voice apps with millisecond timestamps.
 - Instantly places the latest dictation onto the macOS GUI session clipboard (NSPasteboard).

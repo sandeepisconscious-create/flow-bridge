@@ -42,18 +42,18 @@ mkdir -p "$INSTALL_DIR"
 mkdir -p "$LAUNCH_AGENTS_DIR"
 
 # 4. Download or copy daemon script
-TARGET_SCRIPT="$INSTALL_DIR/wispr_clipboard_sync.py"
+TARGET_SCRIPT="$INSTALL_DIR/flow_bridge.py"
 
 # If running from local clone repo directory
-if [[ -f "./wispr_clipboard_sync.py" ]]; then
+if [[ -f "./flow_bridge.py" ]]; then
     echo -e " • Copying local script to ${BOLD}$TARGET_SCRIPT${NC}..."
-    cp "./wispr_clipboard_sync.py" "$TARGET_SCRIPT"
+    cp "./flow_bridge.py" "$TARGET_SCRIPT"
 else
     echo -e " • Downloading latest Flow Bridge from GitHub..."
     if command -v curl &>/dev/null; then
-        curl -fsSL "$RAW_BASE_URL/wispr_clipboard_sync.py" -o "$TARGET_SCRIPT"
+        curl -fsSL "$RAW_BASE_URL/flow_bridge.py" -o "$TARGET_SCRIPT"
     elif command -v wget &>/dev/null; then
-        wget -qO "$TARGET_SCRIPT" "$RAW_BASE_URL/wispr_clipboard_sync.py"
+        wget -qO "$TARGET_SCRIPT" "$RAW_BASE_URL/flow_bridge.py"
     else
         echo -e "${RED}[Error] Neither curl nor wget found. Cannot download script.${NC}" >&2
         exit 1
