@@ -66,6 +66,16 @@ PLIST_PATH="$APP_PATH/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" "$PLIST_PATH" 2>/dev/null || \
 /usr/libexec/PlistBuddy -c "Set :LSUIElement true" "$PLIST_PATH" 2>/dev/null || true
 
+# Set native macOS icon directly on bundle using NSWorkspace
+if [[ -f "$ICON_PATH" ]]; then
+    echo " • Burning cartoon mascot icon into FlowBridge.app bundle..."
+    swift -e "
+    import Cocoa
+    let icon = NSImage(contentsOfFile: \"$REPO_ROOT/assets/logo.png\")!
+    NSWorkspace.shared.setIcon(icon, forFile: \"$APP_PATH\", options: [])
+    " 2>/dev/null || true
+fi
+
 # Refresh bundle icon cache
 touch "$APP_PATH"
 
