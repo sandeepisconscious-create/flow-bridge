@@ -25,52 +25,94 @@ mkdir -p "$APP_PATH/Contents/Resources"
 
 cat <<'EOF' > "$DIST_DIR/launcher.m"
 #import <Cocoa/Cocoa.h>
+#import <WebKit/WebKit.h>
 #import <Foundation/Foundation.h>
+
+@interface AppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate>
+@property (strong, nonatomic) NSWindow *window;
+@property (strong, nonatomic) WKWebView *webView;
+@end
+
+@implementation AppDelegate
+
+- (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSString *home = NSHomeDirectory();
+    NSString *targetDir = [home stringByAppendingPathComponent:@".flow-bridge"];
+    NSString *targetScript = [targetDir stringByAppendingPathComponent:@"flow_bridge.py"];
+    NSString *targetUI = [targetDir stringByAppendingPathComponent:@"ui"];
+    
+    NSString *bundleRes = [[NSBundle mainBundle] resourcePath];
+    NSString *srcScript = [bundleRes stringByAppendingPathComponent:@"flow_bridge.py"];
+    NSString *srcUI = [bundleRes stringByAppendingPathComponent:@"ui"];
+    
+    // 1. Sync files into ~/.flow-bridge
+    [fm createDirectoryAtPath:targetDir withIntermediateDirectories:YES attributes:nil error:nil];
+    if ([fm fileExistsAtPath:srcScript]) {
+        [fm removeItemAtPath:targetScript error:nil];
+        [fm copyItemAtPath:srcScript toPath:targetScript error:nil];
+        NSDictionary *perms = @{NSFilePosixPermissions: @0755};
+        [fm setAttributes:perms ofItemAtPath:targetScript error:nil];
+    }
+    if ([fm fileExistsAtPath:srcUI]) {
+        [fm removeItemAtPath:targetUI error:nil];
+        [fm copyItemAtPath:srcUI toPath:targetUI error:nil];
+    }
+    
+    // 2. Ensure launchd background service is running
+    NSTask *task = [[NSTask alloc] init];
+    task.launchPath = @"/bin/bash";
+    task.arguments = @[@"-c", [NSString stringWithFormat:@"python3 '%@' --install-service", targetScript]];
+    [task launch];
+    [task waitUntilExit];
+    
+    // 3. Create Standalone Native Window (No Browser Required!)
+    NSRect frame = NSMakeRect(0, 0, 720, 680);
+    NSUInteger style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskFullSizeContentView;
+    
+    self.window = [[NSWindow alloc] initWithContentRect:frame styleMask:style backing:NSBackingStoreBuffered defer:NO];
+    [self.window center];
+    self.window.title = @"Flow Bridge";
+    self.window.titlebarAppearsTransparent = YES;
+    self.window.titleVisibility = NSWindowTitleHidden;
+    self.window.backgroundColor = [NSColor colorWithCalibratedRed:9/255.0 green:9/255.0 blue:11/255.0 alpha:1.0];
+    self.window.delegate = self;
+    
+    WKWebViewConfiguration *config = [[WKWebViewConfiguration alloc] init];
+    self.webView = [[WKWebView alloc] initWithFrame:frame configuration:config];
+    self.webView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    [self.webView setValue:@NO forKey:@"drawsBackground"];
+    
+    // Load local shadcn dashboard UI
+    NSURL *url = [NSURL URLWithString:@"http://127.0.0.1:49231"];
+    NSURLRequest *req = [NSURLRequest requestWithURL:url];
+    [self.webView loadRequest:req];
+    
+    [self.window.contentView addSubview:self.webView];
+    [self.window makeKeyAndOrderFront:nil];
+    [NSApp activateIgnoringOtherApps:YES];
+}
+
+- (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender {
+    return YES;
+}
+
+@end
 
 int main(int argc, const char * argv[]) {
     @autoreleasepool {
-        NSFileManager *fm = [NSFileManager defaultManager];
-        NSString *home = NSHomeDirectory();
-        NSString *targetDir = [home stringByAppendingPathComponent:@".flow-bridge"];
-        NSString *targetScript = [targetDir stringByAppendingPathComponent:@"flow_bridge.py"];
-        NSString *targetUI = [targetDir stringByAppendingPathComponent:@"ui"];
-        
-        NSString *bundleRes = [[NSBundle mainBundle] resourcePath];
-        NSString *srcScript = [bundleRes stringByAppendingPathComponent:@"flow_bridge.py"];
-        NSString *srcUI = [bundleRes stringByAppendingPathComponent:@"ui"];
-        
-        // 1. Create ~/.flow-bridge
-        [fm createDirectoryAtPath:targetDir withIntermediateDirectories:YES attributes:nil error:nil];
-        
-        // 2. Copy flow_bridge.py & ui
-        if ([fm fileExistsAtPath:srcScript]) {
-            [fm removeItemAtPath:targetScript error:nil];
-            [fm copyItemAtPath:srcScript toPath:targetScript error:nil];
-            NSDictionary *perms = @{NSFilePosixPermissions: @0755};
-            [fm setAttributes:perms ofItemAtPath:targetScript error:nil];
-        }
-        if ([fm fileExistsAtPath:srcUI]) {
-            [fm removeItemAtPath:targetUI error:nil];
-            [fm copyItemAtPath:srcUI toPath:targetUI error:nil];
-        }
-        
-        // 3. Register launchd background service
-        NSTask *task = [[NSTask alloc] init];
-        task.launchPath = @"/bin/bash";
-        task.arguments = @[@"-c", [NSString stringWithFormat:@"python3 '%@' --install-service", targetScript]];
-        [task launch];
-        [task waitUntilExit];
-        
-        // 4. Open UI Dashboard
-        [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"http://127.0.0.1:49231"]];
+        NSApplication *app = [NSApplication sharedApplication];
+        AppDelegate *delegate = [[AppDelegate alloc] init];
+        app.delegate = delegate;
+        [app run];
     }
     return 0;
 }
 EOF
 
-echo " • Compiling native FlowBridge launcher executable..."
-clang -O3 -framework Cocoa -o "$APP_PATH/Contents/MacOS/FlowBridge" "$DIST_DIR/launcher.m"
-rm -f "$DIST_DIR/launcher.m"
+echo " • Compiling native FlowBridge standalone desktop application executable..."
+clang -O3 -framework Cocoa -framework WebKit -o "$APP_PATH/Contents/MacOS/FlowBridge" "$DIST_DIR/launcher.m"
+rm -f "$DIST_DIR/launcher.m" "$DIST_DIR/test_window.m" "$DIST_DIR/test_window" 2>/dev/null || true
 
 # 2. Bundle python sync engine, UI dashboard, and custom icon
 RESOURCES_DIR="$APP_PATH/Contents/Resources"
@@ -96,17 +138,15 @@ cat <<EOF > "$APP_PATH/Contents/Info.plist"
     <key>CFBundleIdentifier</key>
     <string>com.flowbridge.app</string>
     <key>CFBundleVersion</key>
-    <string>1.0.3</string>
+    <string>1.0.5</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.3</string>
+    <string>1.0.5</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleExecutable</key>
     <string>FlowBridge</string>
     <key>CFBundleIconFile</key>
     <string>FlowBridge</string>
-    <key>LSUIElement</key>
-    <true/>
 </dict>
 </plist>
 EOF
