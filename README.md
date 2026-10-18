@@ -22,6 +22,18 @@ No browser extensions. No setup headaches. It just works in the background.
 
 ---
 
+## 🔍 Common Problems Flow Bridge Solves (Search & FAQs)
+
+If you arrived here searching for any of these issues, Flow Bridge is the direct fix:
+
+- **Wispr Flow not pasting into Google AI Studio, ChatGPT, or Claude**: Web apps with complex virtual DOMs often drop focus when dictation ends, causing synthetic paste events to be swallowed or ignored.
+- **Handy dictation transcript not appearing**: Dictation tools frequently restore previous clipboard contents after attempting their paste. Flow Bridge catches the transcript directly from the local database and holds it on your Mac's clipboard.
+- **Wispr Flow / Detta doesn't paste into Cursor, VS Code, or Terminal**: Electron and terminal emulators often ignore simulated `⌘ + V` keystrokes from background helper windows.
+- **Lost transcribed voice text on blur**: When you click outside the dictation window, your speech is captured in the database but never typed into the input field. Flow Bridge ensures your speech is always waiting on `⌘ + V`.
+- **Dictation text overwriting earlier clipboard content without pasting**: Flow Bridge monitors SQLite transaction logs in real time so your transcript is immediately available on `NSPasteboard`.
+
+---
+
 ## 3-Step Quick Start
 
 1. **Speak** into Wispr Flow, Handy, or Detta.
