@@ -24,27 +24,32 @@ APPLESCRIPT_SOURCE="
 on run
     set appDir to (POSIX path of (path to me))
     set scriptDir to appDir & \"Contents/Resources/flow_bridge.py\"
+    set uiDir to appDir & \"Contents/Resources/ui\"
     set pyBin to do shell script \"which python3 || echo /usr/bin/python3\"
     set userHome to (POSIX path of (path to home folder))
     set targetDir to userHome & \".flow-bridge\"
     set targetScript to targetDir & \"/flow_bridge.py\"
+    set targetUI to targetDir & \"/ui\"
     
-    -- Auto-install into ~/.flow-bridge so the DMG volume doesn't stay locked
-    do shell script \"mkdir -p \" & quoted form of targetDir & \" && cp \" & quoted form of scriptDir & \" \" & quoted form of targetScript & \" && chmod +x \" & quoted form of targetScript
+    -- Auto-install into ~/.flow-bridge
+    do shell script \"mkdir -p \" & quoted form of targetDir & \" && cp \" & quoted form of scriptDir & \" \" & quoted form of targetScript & \" && cp -R \" & quoted form of uiDir & \" \" & quoted form of targetDir & \" && chmod +x \" & quoted form of targetScript
     
     -- Register LaunchAgent service to start on boot
     do shell script quoted form of pyBin & \" \" & quoted form of targetScript & \" --install-service\"
     
-    display notification \"Flow Bridge is active! Voice dictation is now auto-synced to your clipboard.\" with title \"Flow Bridge\" subtitle \"Dictation Hub Active\"
+    -- Open Dashboard UI
+    do shell script \"open http://127.0.0.1:49231\"
+    display notification \"Flow Bridge is active! Showing your dictation dashboard.\" with title \"Flow Bridge\" subtitle \"Dictation Hub Active\"
 end run
 "
 
 osacompile -e "$APPLESCRIPT_SOURCE" -o "$APP_PATH"
 
-# 2. Bundle python sync engine inside the app's Resources directory
+# 2. Bundle python sync engine and UI dashboard inside the app's Resources directory
 RESOURCES_DIR="$APP_PATH/Contents/Resources"
 mkdir -p "$RESOURCES_DIR"
 cp "$REPO_ROOT/flow_bridge.py" "$RESOURCES_DIR/flow_bridge.py"
+cp -R "$REPO_ROOT/ui" "$RESOURCES_DIR/ui"
 chmod +x "$RESOURCES_DIR/flow_bridge.py"
 
 # Apply custom app icon (.icns)

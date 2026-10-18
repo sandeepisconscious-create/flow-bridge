@@ -12,15 +12,18 @@ from __future__ import annotations
 
 import argparse
 import fcntl
+import json
 import os
 import signal
 import sqlite3
 import subprocess
 import sys
+import threading
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import List, Optional, Tuple
 
 LOCK_FILE_PATH = os.path.expanduser("~/.flow_bridge.lock")
@@ -124,6 +127,11 @@ class BaseDictationWatcher(ABC):
         """Fetches the most recent non-empty transcript entry."""
         pass
 
+    @abstractmethod
+    def get_history(self, limit: int = 10) -> List[DictationRecord]:
+        """Fetches the latest N transcript entries."""
+        pass
+
 
 class WisprFlowWatcher(BaseDictationWatcher):
     """Watches Wispr Flow's SQLite history database."""
@@ -132,42 +140,43 @@ class WisprFlowWatcher(BaseDictationWatcher):
         super().__init__(db_path, "Wispr Flow")
 
     def get_latest(self) -> Optional[DictationRecord]:
+        history = self.get_history(limit=1)
+        return history[0] if history else None
+
+    def get_history(self, limit: int = 10) -> List[DictationRecord]:
         if not self.is_available():
-            return None
+            return []
+        records: List[DictationRecord] = []
         try:
-            # Open in read-only immutable/WAL safe mode
             with sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True, timeout=1.0) as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
+                cursor.execute(f"""
                     SELECT transcriptEntityId, timestamp, formattedText 
                     FROM History 
                     WHERE formattedText IS NOT NULL AND length(trim(formattedText)) > 0 
-                    ORDER BY rowid DESC LIMIT 1;
+                    ORDER BY rowid DESC LIMIT {limit};
                 """)
-                row = cursor.fetchone()
-                if not row:
-                    return None
+                rows = cursor.fetchall()
+                for row in rows:
+                    entity_id, ts_str, text = row
+                    if not text or not text.strip():
+                        continue
+                    try:
+                        clean_ts = ts_str.split("+")[0].strip()
+                        dt = datetime.fromisoformat(clean_ts).replace(tzinfo=timezone.utc)
+                        unix_ts = dt.timestamp()
+                    except Exception:
+                        unix_ts = time.time()
 
-                entity_id, ts_str, text = row
-                if not text or not text.strip():
-                    return None
-
-                # Format example: '2026-10-18 05:41:37.215 +00:00'
-                try:
-                    clean_ts = ts_str.split("+")[0].strip()
-                    dt = datetime.fromisoformat(clean_ts).replace(tzinfo=timezone.utc)
-                    unix_ts = dt.timestamp()
-                except Exception:
-                    unix_ts = time.time()
-
-                return DictationRecord(
-                    source_name=self.source_name,
-                    unique_id=f"wispr_{entity_id}",
-                    timestamp=unix_ts,
-                    text=text.strip()
-                )
+                    records.append(DictationRecord(
+                        source_name=self.source_name,
+                        unique_id=f"wispr_{entity_id}",
+                        timestamp=unix_ts,
+                        text=text.strip()
+                    ))
         except Exception:
-            return None
+            pass
+        return records
 
 
 class DettaWatcher(BaseDictationWatcher):
@@ -177,33 +186,36 @@ class DettaWatcher(BaseDictationWatcher):
         super().__init__(db_path, "Detta")
 
     def get_latest(self) -> Optional[DictationRecord]:
+        history = self.get_history(limit=1)
+        return history[0] if history else None
+
+    def get_history(self, limit: int = 10) -> List[DictationRecord]:
         if not self.is_available():
-            return None
+            return []
+        records: List[DictationRecord] = []
         try:
             with sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True, timeout=1.0) as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
+                cursor.execute(f"""
                     SELECT id, ts, text 
                     FROM entries 
                     WHERE text IS NOT NULL AND length(trim(text)) > 0 
-                    ORDER BY id DESC LIMIT 1;
+                    ORDER BY id DESC LIMIT {limit};
                 """)
-                row = cursor.fetchone()
-                if not row:
-                    return None
-
-                entry_id, unix_ts, text = row
-                if not text or not text.strip():
-                    return None
-
-                return DictationRecord(
-                    source_name=self.source_name,
-                    unique_id=f"detta_{entry_id}",
-                    timestamp=float(unix_ts),
-                    text=text.strip()
-                )
+                rows = cursor.fetchall()
+                for row in rows:
+                    entry_id, unix_ts, text = row
+                    if not text or not text.strip():
+                        continue
+                    records.append(DictationRecord(
+                        source_name=self.source_name,
+                        unique_id=f"detta_{entry_id}",
+                        timestamp=float(unix_ts),
+                        text=text.strip()
+                    ))
         except Exception:
-            return None
+            pass
+        return records
 
 
 class FlowBridgeDaemon:
@@ -236,7 +248,86 @@ class FlowBridgeDaemon:
         print(f" • Settle & Hold   : {self.config.settle_delay_sec}s delay + {self.config.reassert_attempts}x reasserts")
         print(f" • Notifications   : {'Enabled' if self.config.show_notifications else 'Disabled'}")
         print("=" * 66)
-        print("Listening for voice transcripts... (Press Ctrl+C to stop)\n", flush=True)
+    def get_app_status(self) -> List[dict]:
+        """Returns detection status of all registered dictation engines."""
+        return [
+            {"name": w.source_name, "available": w.is_available(), "path": w.db_path}
+            for w in self.watchers
+        ]
+
+    def get_recent_history(self, limit: int = 10) -> List[dict]:
+        """Combines and returns the latest N dictations across all detected engines."""
+        all_records: List[DictationRecord] = []
+        for watcher in self.watchers:
+            all_records.extend(watcher.get_history(limit=limit))
+
+        all_records.sort(key=lambda r: r.timestamp, reverse=True)
+        top = all_records[:limit]
+
+        return [
+            {
+                "id": r.unique_id,
+                "source": r.source_name,
+                "text": r.text,
+                "timestamp": r.timestamp,
+                "time": datetime.fromtimestamp(r.timestamp).strftime("%I:%M:%S %p")
+            }
+            for r in top
+        ]
+
+    def _start_ui_server(self, port: int = 49231) -> None:
+        """Starts a lightweight local HTTP server for the shadcn dashboard UI."""
+        daemon_self = self
+        ui_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui")
+        logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "logo.png")
+
+        class UIHandler(BaseHTTPRequestHandler):
+            def log_message(self, format, *args):
+                pass  # Keep terminal output completely silent and clean
+
+            def do_GET(self):
+                if self.path in ("/", "/index.html"):
+                    html_file = os.path.join(ui_dir, "index.html")
+                    if os.path.exists(html_file):
+                        with open(html_file, "rb") as f:
+                            content = f.read()
+                        self.send_response(200)
+                        self.send_header("Content-Type", "text/html; charset=utf-8")
+                        self.end_headers()
+                        self.wfile.write(content)
+                        return
+                elif self.path == "/assets/logo.png" or self.path == "/logo.png":
+                    if os.path.exists(logo_path):
+                        with open(logo_path, "rb") as f:
+                            content = f.read()
+                        self.send_response(200)
+                        self.send_header("Content-Type", "image/png")
+                        self.end_headers()
+                        self.wfile.write(content)
+                        return
+                elif self.path == "/api/state":
+                    data = {
+                        "apps": daemon_self.get_app_status(),
+                        "history": daemon_self.get_recent_history(limit=10)
+                    }
+                    body = json.dumps(data).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self.send_header("Access-Control-Allow-Origin", "*")
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+
+                self.send_response(404)
+                self.end_headers()
+
+        try:
+            server = ThreadingHTTPServer(("127.0.0.1", port), UIHandler)
+            threading.Thread(target=server.serve_forever, daemon=True).start()
+            if self.config.verbose:
+                print(f"[Flow Bridge] Dashboard UI running at http://127.0.0.1:{port}")
+        except Exception:
+            pass
 
     def _acquire_single_instance_lock(self) -> None:
         """Ensures only a single instance of Flow Bridge runs at any given time."""
@@ -269,6 +360,7 @@ class FlowBridgeDaemon:
     def run(self) -> None:
         self._acquire_single_instance_lock()
         self._setup_signal_handlers()
+        self._start_ui_server()
         self.print_status()
 
         # Seed initial state with existing records so historical entries are not copied at startup
@@ -413,8 +505,14 @@ def main() -> None:
     parser.add_argument("--install-service", action="store_true", help="Install as macOS background launchd service (runs on boot)")
     parser.add_argument("--uninstall-service", action="store_true", help="Uninstall macOS background launchd service")
     parser.add_argument("--test-clipboard", action="store_true", help="Test setting clipboard and exit")
+    parser.add_argument("--dashboard", action="store_true", help="Open Flow Bridge shadcn/ui dashboard")
 
     args = parser.parse_args()
+
+    if args.dashboard:
+        # Start server if not running, then open dashboard
+        subprocess.run(["open", "http://127.0.0.1:49231"])
+        return
 
     if args.install_service:
         install_service()

@@ -41,19 +41,27 @@ echo -e " • Using Python runtime: ${GREEN}$PYTHON_BIN${NC}"
 mkdir -p "$INSTALL_DIR"
 mkdir -p "$LAUNCH_AGENTS_DIR"
 
-# 4. Download or copy daemon script
+# 4. Download or copy daemon script and UI dashboard
 TARGET_SCRIPT="$INSTALL_DIR/flow_bridge.py"
+mkdir -p "$INSTALL_DIR/ui"
+mkdir -p "$INSTALL_DIR/assets"
 
 # If running from local clone repo directory
 if [[ -f "./flow_bridge.py" ]]; then
     echo -e " • Copying local script to ${BOLD}$TARGET_SCRIPT${NC}..."
     cp "./flow_bridge.py" "$TARGET_SCRIPT"
+    cp -R "./ui/"* "$INSTALL_DIR/ui/" 2>/dev/null || true
+    cp -R "./assets/"* "$INSTALL_DIR/assets/" 2>/dev/null || true
 else
     echo -e " • Downloading latest Flow Bridge from GitHub..."
     if command -v curl &>/dev/null; then
         curl -fsSL "$RAW_BASE_URL/flow_bridge.py" -o "$TARGET_SCRIPT"
+        curl -fsSL "$RAW_BASE_URL/ui/index.html" -o "$INSTALL_DIR/ui/index.html" 2>/dev/null || true
+        curl -fsSL "$RAW_BASE_URL/assets/logo.png" -o "$INSTALL_DIR/assets/logo.png" 2>/dev/null || true
     elif command -v wget &>/dev/null; then
         wget -qO "$TARGET_SCRIPT" "$RAW_BASE_URL/flow_bridge.py"
+        wget -qO "$INSTALL_DIR/ui/index.html" "$RAW_BASE_URL/ui/index.html" 2>/dev/null || true
+        wget -qO "$INSTALL_DIR/assets/logo.png" "$RAW_BASE_URL/assets/logo.png" 2>/dev/null || true
     else
         echo -e "${RED}[Error] Neither curl nor wget found. Cannot download script.${NC}" >&2
         exit 1
