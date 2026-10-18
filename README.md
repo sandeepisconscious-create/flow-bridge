@@ -47,13 +47,13 @@ If you arrived here searching for any of these issues, Flow Bridge is the direct
 Choose whichever is easier for you:
 
 ### Method 1: Double-Click Installer (Easiest)
-1. Download **[FlowBridge-Installer.dmg (Latest v1.0.5)](https://github.com/sandeepisconscious-create/flow-bridge/releases/download/v1.0.5/FlowBridge-Installer.dmg)** (or check [Releases](https://github.com/sandeepisconscious-create/flow-bridge/releases)).
+1. Download **[FlowBridge-Installer.dmg (Latest v1.0.6)](https://github.com/sandeepisconscious-create/flow-bridge/releases/download/v1.0.6/FlowBridge-Installer.dmg)** (or check [Releases](https://github.com/sandeepisconscious-create/flow-bridge/releases)).
 2. Open the downloaded DMG and drag **FlowBridge** into your **Applications** folder.
 3. **To open for the first time**:
    - Right-click (or Control-click) **`FlowBridge.app`** in Applications and select **Open** → then click **Open**.
    - *(Or double-click the `Open FlowBridge.command` helper right inside the DMG).*
    
-   A sleek, standalone native desktop window will immediately open on your screen with your dictations and detected apps!
+   A native window opens directly on your desktop, and a blue microphone icon appears in your top macOS menu bar! When closed or minimized, it lives silently in your menu bar—just click the icon to drop down your dictations anytime.
 
 ---
 

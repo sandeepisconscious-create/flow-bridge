@@ -29,8 +29,11 @@ cat <<'EOF' > "$DIST_DIR/launcher.m"
 #import <Foundation/Foundation.h>
 
 @interface AppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate>
+@property (strong, nonatomic) NSStatusItem *statusItem;
+@property (strong, nonatomic) NSPopover *popover;
 @property (strong, nonatomic) NSWindow *window;
-@property (strong, nonatomic) WKWebView *webView;
+@property (strong, nonatomic) WKWebView *windowWebView;
+@property (strong, nonatomic) WKWebView *popoverWebView;
 @end
 
 @implementation AppDelegate
@@ -66,7 +69,37 @@ cat <<'EOF' > "$DIST_DIR/launcher.m"
     [task launch];
     [task waitUntilExit];
     
-    // 3. Create Standalone Native Window (No Browser Required!)
+    // 3. Setup Menu Bar Icon (Top status bar)
+    self.statusItem = [[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength];
+    NSString *iconFile = [bundleRes stringByAppendingPathComponent:@"status_icon.png"];
+    NSImage *img = [[NSImage alloc] initWithContentsOfFile:iconFile];
+    if (!img) {
+        img = [NSImage imageWithSystemSymbolName:@"mic.fill" accessibilityDescription:@"Flow Bridge"];
+    }
+    [img setTemplate:NO];
+    img.size = NSMakeSize(18, 18);
+    self.statusItem.button.image = img;
+    self.statusItem.button.target = self;
+    self.statusItem.button.action = @selector(togglePopover:);
+    
+    // Setup Menu Bar Popover
+    self.popover = [[NSPopover alloc] init];
+    self.popover.behavior = NSPopoverBehaviorTransient;
+    
+    NSViewController *vc = [[NSViewController alloc] init];
+    vc.view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 540, 580)];
+    
+    WKWebViewConfiguration *pConfig = [[WKWebViewConfiguration alloc] init];
+    self.popoverWebView = [[WKWebView alloc] initWithFrame:vc.view.bounds configuration:pConfig];
+    self.popoverWebView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    [self.popoverWebView setValue:@NO forKey:@"drawsBackground"];
+    [self.popoverWebView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"http://127.0.0.1:49231"]]];
+    [vc.view addSubview:self.popoverWebView];
+    
+    self.popover.contentViewController = vc;
+    self.popover.contentSize = NSMakeSize(540, 580);
+    
+    // 4. Create Main Floating Window
     NSRect frame = NSMakeRect(0, 0, 720, 680);
     NSUInteger style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskFullSizeContentView;
     
@@ -78,23 +111,45 @@ cat <<'EOF' > "$DIST_DIR/launcher.m"
     self.window.backgroundColor = [NSColor colorWithCalibratedRed:9/255.0 green:9/255.0 blue:11/255.0 alpha:1.0];
     self.window.delegate = self;
     
-    WKWebViewConfiguration *config = [[WKWebViewConfiguration alloc] init];
-    self.webView = [[WKWebView alloc] initWithFrame:frame configuration:config];
-    self.webView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-    [self.webView setValue:@NO forKey:@"drawsBackground"];
+    WKWebViewConfiguration *wConfig = [[WKWebViewConfiguration alloc] init];
+    self.windowWebView = [[WKWebView alloc] initWithFrame:frame configuration:wConfig];
+    self.windowWebView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    [self.windowWebView setValue:@NO forKey:@"drawsBackground"];
+    [self.windowWebView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"http://127.0.0.1:49231"]]];
     
-    // Load local shadcn dashboard UI
-    NSURL *url = [NSURL URLWithString:@"http://127.0.0.1:49231"];
-    NSURLRequest *req = [NSURLRequest requestWithURL:url];
-    [self.webView loadRequest:req];
-    
-    [self.window.contentView addSubview:self.webView];
+    [self.window.contentView addSubview:self.windowWebView];
     [self.window makeKeyAndOrderFront:nil];
     [NSApp activateIgnoringOtherApps:YES];
 }
 
-- (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender {
+- (void)togglePopover:(id)sender {
+    if (self.popover.isShown) {
+        [self.popover performClose:sender];
+    } else {
+        [self.popoverWebView reload];
+        [self.popover showRelativeToRect:self.statusItem.button.bounds ofView:self.statusItem.button preferredEdge:NSRectEdgeMinY];
+        [NSApp activateIgnoringOtherApps:YES];
+    }
+}
+
+// When user closes or minimizes the window, seamlessly hide it to menu bar
+- (BOOL)windowShouldClose:(NSWindow *)sender {
+    [self.window orderOut:nil];
+    return NO;
+}
+
+- (void)windowDidMiniaturize:(NSNotification *)notification {
+    [self.window orderOut:nil];
+}
+
+- (BOOL)applicationShouldHandleReopen:(NSApplication *)sender hasVisibleWindows:(BOOL)flag {
+    [self.window makeKeyAndOrderFront:nil];
+    [NSApp activateIgnoringOtherApps:YES];
     return YES;
+}
+
+- (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender {
+    return NO;
 }
 
 @end
@@ -110,14 +165,16 @@ int main(int argc, const char * argv[]) {
 }
 EOF
 
-echo " • Compiling native FlowBridge standalone desktop application executable..."
+echo " • Compiling native FlowBridge Menu Bar + Window app..."
 clang -O3 -framework Cocoa -framework WebKit -o "$APP_PATH/Contents/MacOS/FlowBridge" "$DIST_DIR/launcher.m"
-rm -f "$DIST_DIR/launcher.m" "$DIST_DIR/test_window.m" "$DIST_DIR/test_window" 2>/dev/null || true
+rm -f "$DIST_DIR/launcher.m" "$DIST_DIR/test_status_app.m" "$DIST_DIR/test_status_app" 2>/dev/null || true
 
-# 2. Bundle python sync engine, UI dashboard, and custom icon
+# 2. Bundle python sync engine, UI dashboard, custom icons
 RESOURCES_DIR="$APP_PATH/Contents/Resources"
 cp "$REPO_ROOT/flow_bridge.py" "$RESOURCES_DIR/flow_bridge.py"
 cp -R "$REPO_ROOT/ui" "$RESOURCES_DIR/ui"
+cp "$REPO_ROOT/assets/status_icon.png" "$RESOURCES_DIR/status_icon.png" 2>/dev/null || true
+cp "$REPO_ROOT/assets/status_icon@2x.png" "$RESOURCES_DIR/status_icon@2x.png" 2>/dev/null || true
 chmod +x "$RESOURCES_DIR/flow_bridge.py"
 
 if [[ -f "$ICON_PATH" ]]; then
@@ -125,7 +182,7 @@ if [[ -f "$ICON_PATH" ]]; then
     cp "$ICON_PATH" "$RESOURCES_DIR/FlowBridge.icns"
 fi
 
-# Clean Info.plist with explicit icon and background agent configuration
+# Clean Info.plist with LSUIElement=true (lives in Menu Bar & Notification area)
 cat <<EOF > "$APP_PATH/Contents/Info.plist"
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -138,15 +195,17 @@ cat <<EOF > "$APP_PATH/Contents/Info.plist"
     <key>CFBundleIdentifier</key>
     <string>com.flowbridge.app</string>
     <key>CFBundleVersion</key>
-    <string>1.0.5</string>
+    <string>1.0.6</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.5</string>
+    <string>1.0.6</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleExecutable</key>
     <string>FlowBridge</string>
     <key>CFBundleIconFile</key>
     <string>FlowBridge</string>
+    <key>LSUIElement</key>
+    <true/>
 </dict>
 </plist>
 EOF
