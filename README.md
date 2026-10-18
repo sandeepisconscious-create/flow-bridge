@@ -1,53 +1,66 @@
-# Flow Bridge (⚡ Input Healer & Wispr Flow Auto-Paster)
+# Flow Bridge 🎙️
 
-A lightweight dual-utility system designed to fix frozen web input fields and provide seamless Wispr Flow dictation integration across complex web applications like Google AI Studio, ChatGPT, Claude, and rich-text editors.
+**Universal macOS Dictation Clipboard Sync Daemon**
 
----
-
-## 🌟 The Problem It Solves
-
-1. **Wispr Flow Dictation Paste Issues:**
-   - Modern single-page applications (like Google AI Studio, Angular/React interfaces) often reject or drop synthetic paste events from desktop voice-typing tools like Wispr Flow due to focus drift or virtual DOM event isolation.
-2. **Input Freezing & Missed Keystrokes:**
-   - Web inputs frequently drop focus, ignore initial keystrokes, or desync from reactive component state.
+Flow Bridge solves the voice-to-text dictation problem across all desktop and web apps (Google AI Studio, ChatGPT, Claude, Cursor, Antigravity, Terminal, Slack, etc.) by reading directly from voice app databases at the OS level and synchronizing your speech onto the macOS GUI clipboard (`NSPasteboard`).
 
 ---
 
-## 🚀 Architecture & Components
+## 💡 Why This Replaces Browser Input Hacks
 
-`flow-bridge` provides two coordinated solutions:
+Modern web apps use complex Virtual DOMs (Angular, React, ProseMirror, CodeMirror) that frequently reject synthetic DOM events, drop focus during voice-capture window blur, or lose text during state reconciliation.
 
-### 1. Wispr Flow Clipboard Sync Daemon (`wispr_clipboard_sync.py`)
-- **Native macOS AppKit Pasteboard:** Writes directly to the macOS GUI session (`NSPasteboard.generalPasteboard()`), avoiding subprocess shell isolation.
-- **Race-Condition Resilient:** Wispr Flow cleans up and restores previous clipboards after auto-paste attempts. This daemon listens to the local Wispr database WAL, settles for 350ms, and re-asserts the finalized transcript so `Cmd + V` **always** pastes your latest speech anywhere.
-- **100% Silent:** Runs quietly in the background without intrusive banners or alerts.
-
-### 2. Chrome Extension (`manifest.json` + `src/`)
-- **Universal Input Healer:** Automatically detects frozen fields, clears CSS traps (`pointer-events: none`), and forces cursor re-focusing.
-- **Google AI Studio Adapter:** Identifies prompt components (`ms-prompt-editor`, chunk textareas) and provides quick smart-paste triggers.
-- **Shortcuts:**
-  - `Cmd + Shift + V` (Mac) / `Ctrl + Shift + V` (Windows): Smart-paste dictation into active prompt.
-  - `Alt + Shift + F`: Force-unfreeze current input field.
+**Flow Bridge bypasses the browser completely:**
+1. Concurrently listens to local voice app databases (Wispr Flow, Detta) with millisecond timestamp comparison.
+2. Whichever voice tool you speak into last is instantly written to your system clipboard.
+3. **Anti-Race-Condition Settle & Hold**: Voice tools often restore old clipboard contents after simulating pastes. Flow Bridge waits for the app's internal routine to settle, then re-asserts your speech so `⌘ + V` **always** pastes your actual spoken transcript.
 
 ---
 
-## 🛠️ Installation & Setup
+## ⚡ Quick Start
 
-### A. Run the Clipboard Sync Daemon
+### 1. Run in Foreground
 ```bash
-python3 wispr_clipboard_sync.py
+./wispr_clipboard_sync.py
 ```
-*(To run in the background on startup, add to your user launchd or run via nohup).*
+*(Or `python3 wispr_clipboard_sync.py`)*
 
-### B. Load the Chrome Extension
-1. Open Google Chrome and go to `chrome://extensions/`.
-2. Turn on **Developer mode** (top-right).
-3. Click **Load unpacked** (top-left).
-4. Select the `flow-bridge` directory:
-   ```text
-   /Users/sandeeprao/Documents/Code/flow-bridge
-   ```
-5. Pin the extension to your toolbar.
+### 2. Run with Native macOS Notifications
+```bash
+./wispr_clipboard_sync.py --notify
+```
+
+### 3. Run Automatically in Background on Boot (`launchd`)
+To install Flow Bridge as a background macOS service that starts silently whenever you log in:
+```bash
+./wispr_clipboard_sync.py --install-service
+```
+To uninstall the service at any time:
+```bash
+./wispr_clipboard_sync.py --uninstall-service
+```
+
+---
+
+## ⚙️ CLI Options
+
+| Flag | Default | Description |
+|---|---|---|
+| `--poll` | `0.25` | Polling frequency in seconds |
+| `--settle` | `0.35` | Settle delay before re-assertion |
+| `--reassert` | `3` | Number of re-assertion hold attempts |
+| `--notify` | `False` | Display native macOS notification on sync |
+| `--verbose` | `False` | Print verbose debug logs |
+| `--install-service` | — | Install as macOS background launchd service |
+| `--uninstall-service`| — | Uninstall macOS background launchd service |
+| `--test-clipboard` | — | Test writing and reading from NSPasteboard |
+
+---
+
+## 📁 Supported Voice Apps
+- **Wispr Flow**: `~/Library/Application Support/Wispr Flow/flow.sqlite`
+- **Detta**: `~/Library/Application Support/Detta/history.db`
+- Extensible architecture via `BaseDictationWatcher` for additional local voice engines.
 
 ---
 
