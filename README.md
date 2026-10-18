@@ -13,7 +13,7 @@
 
 ---
 
-## 💡 What is Flow Bridge? (In Plain English)
+## 💡 What is Flow Bridge?
 
 Have you ever used a voice dictation app on your Mac (**Wispr Flow**, **Handy**, or **Detta**) to talk into **Google AI Studio, ChatGPT, Claude, Cursor, VS Code, Slack, or Terminal**, only for your spoken words to **vanish** or fail to paste?
 
