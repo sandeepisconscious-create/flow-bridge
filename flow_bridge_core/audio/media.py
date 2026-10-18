@@ -1,5 +1,7 @@
 """
-CoreAudio Hardware Volume Management & MediaRemote Playback Control.
+CoreAudio Hardware Volume Management.
+Provides instantaneous, zero-latency audio muting during dictation across all apps and tabs,
+without sending any media playback commands that can cause unwanted auto-play or launch Apple Music.
 """
 
 from __future__ import annotations
@@ -18,9 +20,8 @@ class AudioObjectPropertyAddress(ctypes.Structure):
 
 
 class MediaController:
-    """Manages system-wide audio and video pause/resume via CoreAudio Hardware Muting and MediaRemote."""
+    """Manages system-wide audio output muting directly via macOS CoreAudio."""
 
-    _mr = None
     _ca = None
     _out_dev: Optional[int] = None
     _addr_mute: Optional[AudioObjectPropertyAddress] = None
@@ -33,14 +34,6 @@ class MediaController:
 
     @classmethod
     def _init(cls) -> None:
-        if cls._mr is None:
-            try:
-                cls._mr = ctypes.cdll.LoadLibrary("/System/Library/PrivateFrameworks/MediaRemote.framework/MediaRemote")
-                cls._mr.MRMediaRemoteSendCommand.restype = ctypes.c_bool
-                cls._mr.MRMediaRemoteSendCommand.argtypes = [ctypes.c_int32, ctypes.c_void_p]
-            except Exception:
-                cls._mr = False
-
         if cls._ca is None:
             try:
                 ca_path = ctypes.util.find_library("CoreAudio")
@@ -65,10 +58,9 @@ class MediaController:
 
     @classmethod
     def pause(cls) -> bool:
-        """Immediately mutes all audio output (YouTube, Spotify, Chrome, system sounds) instantly without launching Apple Music."""
+        """Immediately mutes the macOS hardware audio output (sub-millisecond instant silence)."""
         cls._init()
 
-        # 1. Hardware Output Mute (sub-millisecond instant silence across all apps and tabs)
         dev_id = cls._get_default_output_device()
         if cls._ca and dev_id and cls._addr_mute:
             try:
@@ -84,25 +76,15 @@ class MediaController:
                     cls._out_dev = dev_id
             except Exception:
                 pass
-
-        # 2. MediaRemote Pause signal (safe, pauses active audio/video without launching apps)
-        if cls._mr:
-            try:
-                # 1 = kMRPause
-                cls._mr.MRMediaRemoteSendCommand(1, None)
-            except Exception:
-                pass
         return True
 
     @classmethod
     def resume(cls) -> bool:
-        """Restores audio output volume instantly without invoking blind kMRPlay which launches Apple Music."""
+        """Restores hardware audio output volume cleanly without sending any media player resume signals."""
         cls._init()
 
-        # 1. Unmute hardware output if we were the one who muted it
         if cls._ca and cls._is_muted_by_us and cls._addr_mute:
             try:
-                # Unmute both the device we recorded muting and the current default output
                 target_devs = set()
                 if cls._out_dev:
                     target_devs.add(cls._out_dev)
@@ -116,8 +98,4 @@ class MediaController:
                 cls._is_muted_by_us = False
             except Exception:
                 pass
-
-        # Note: We intentionally DO NOT send blind kMRPlay (0) here.
-        # Sending kMRPlay when no track was previously playing causes macOS to launch Music.app.
-        # By unmuting the hardware output, active media continues smoothly with zero app launches.
         return True
