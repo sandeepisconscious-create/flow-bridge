@@ -18,59 +18,63 @@ rm -rf "$DIST_DIR"
 mkdir -p "$DIST_DIR"
 
 # 1. Compile AppleScript launcher into a macOS Application bundle (.app)
+# When launched, it installs the permanent user LaunchAgent and runs the sync engine.
 APPLESCRIPT_SOURCE="
 on run
-    set scriptDir to (POSIX path of (path to me)) & \"Contents/Resources/wispr_clipboard_sync.py\"
+    set appDir to (POSIX path of (path to me))
+    set scriptDir to appDir & \"Contents/Resources/wispr_clipboard_sync.py\"
     set pyBin to do shell script \"which python3 || echo /usr/bin/python3\"
+    set userHome to (POSIX path of (path to home folder))
+    set targetDir to userHome & \".flow-bridge\"
+    set targetScript to targetDir & \"/wispr_clipboard_sync.py\"
     
-    set dialogResult to display dialog \"Flow Bridge will now run in the background to sync your voice dictation (Wispr Flow & Detta) to your clipboard.\\n\\nWould you like to install it as a background service that starts automatically whenever you log in?\" with title \"Flow Bridge Setup\" buttons {\"Run Now Only\", \"Install on Startup\"} default button \"Install on Startup\" with icon note
+    -- Auto-install into ~/.flow-bridge so the DMG volume doesn't stay locked
+    do shell script \"mkdir -p \" & quoted form of targetDir & \" && cp \" & quoted form of scriptDir & \" \" & quoted form of targetScript & \" && chmod +x \" & quoted form of targetScript
     
-    if button returned of dialogResult is \"Install on Startup\" then
-        do shell script quoted form of pyBin & \" \" & quoted form of scriptDir & \" --install-service\"
-        display notification \"Flow Bridge has been installed to start automatically on login!\" with title \"Flow Bridge\" subtitle \"Startup Service Enabled\"
-    else
-        do shell script \"nohup \" & quoted form of pyBin & \" \" & quoted form of scriptDir & \" >/dev/null 2>&1 &\"
-        display notification \"Flow Bridge is running in the background for this session!\" with title \"Flow Bridge\" subtitle \"Active\"
-    end if
+    -- Register LaunchAgent service to start on boot
+    do shell script quoted form of pyBin & \" \" & quoted form of targetScript & \" --install-service\"
+    
+    display notification \"Flow Bridge is active! Voice dictation is now auto-synced to your clipboard.\" with title \"Flow Bridge\" subtitle \"Dictation Hub Active\"
 end run
 "
 
 osacompile -e "$APPLESCRIPT_SOURCE" -o "$APP_PATH"
 
-# 2. Bundle the python sync engine inside the app's Resources directory
+# 2. Bundle python sync engine inside the app's Resources directory
 RESOURCES_DIR="$APP_PATH/Contents/Resources"
 mkdir -p "$RESOURCES_DIR"
 cp "$SCRIPT_DIR/wispr_clipboard_sync.py" "$RESOURCES_DIR/wispr_clipboard_sync.py"
 chmod +x "$RESOURCES_DIR/wispr_clipboard_sync.py"
 
-# Update Info.plist to mark as lightweight agent app
+# Update Info.plist:
+# LSUIElement = 1 makes it an invisible background agent (NO Dock icon clutter!)
 PLIST_PATH="$APP_PATH/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleName FlowBridge" "$PLIST_PATH" 2>/dev/null || true
 /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Flow Bridge" "$PLIST_PATH" 2>/dev/null || true
 /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.flowbridge.app" "$PLIST_PATH" 2>/dev/null || true
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.0.0" "$PLIST_PATH" 2>/dev/null || true
+/usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" "$PLIST_PATH" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :LSUIElement true" "$PLIST_PATH" 2>/dev/null || true
 
-# 3. Create distributable .dmg using hdiutil
-echo "📦 Packaging into distributable DMG: $DMG_PATH..."
+# 3. Create distributable DMG with classic drag-and-drop layout
+echo "📦 Packaging into distributable Drag-and-Drop DMG..."
 DMG_STAGING="$DIST_DIR/dmg_staging"
 mkdir -p "$DMG_STAGING"
 cp -R "$APP_PATH" "$DMG_STAGING/"
 
-# Add link to Applications folder for standard Mac installation
+# Add Applications shortcut link
 ln -s /Applications "$DMG_STAGING/Applications"
 
-# Add README for users opening the DMG
-cat <<EOF > "$DMG_STAGING/READ_ME.txt"
-Flow Bridge - Universal Voice Dictation Clipboard Sync
-=====================================================
+# Set DMG volume icon and background layout instructions
+cat <<EOF > "$DMG_STAGING/Install Instructions.txt"
+Flow Bridge - Drag & Drop Installation
+======================================
 
-Installation:
-1. Drag 'FlowBridge.app' into your 'Applications' folder.
-2. Double-click 'FlowBridge.app' in Applications to launch or enable startup on boot.
-3. Speak into Wispr Flow or Detta, and press ⌘+V anywhere!
+1. Drag FlowBridge.app into the Applications folder shortcut.
+2. Open Applications and double-click FlowBridge.app once.
+3. That's it! It runs silently in the background and auto-starts on login.
 EOF
 
-hdiutil create -volname "Flow Bridge Installer" -srcfolder "$DMG_STAGING" -ov -format UDZO "$DMG_PATH"
+hdiutil create -volname "Flow Bridge" -srcfolder "$DMG_STAGING" -ov -format UDZO "$DMG_PATH"
 rm -rf "$DMG_STAGING"
 
 echo ""

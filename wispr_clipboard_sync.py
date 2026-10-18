@@ -11,6 +11,7 @@ Flow Bridge: Universal Dictation Clipboard Sync Daemon
 from __future__ import annotations
 
 import argparse
+import fcntl
 import os
 import signal
 import sqlite3
@@ -21,6 +22,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import List, Optional, Tuple
+
+LOCK_FILE_PATH = os.path.expanduser("~/.flow_bridge.lock")
 
 
 @dataclass(frozen=True)
@@ -235,7 +238,36 @@ class FlowBridgeDaemon:
         print("=" * 66)
         print("Listening for voice transcripts... (Press Ctrl+C to stop)\n", flush=True)
 
+    def _acquire_single_instance_lock(self) -> None:
+        """Ensures only a single instance of Flow Bridge runs at any given time."""
+        try:
+            self._lock_file = open(LOCK_FILE_PATH, "a+")
+            fcntl.flock(self._lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self._lock_file.seek(0)
+            self._lock_file.truncate()
+            self._lock_file.write(f"{os.getpid()}\n")
+            self._lock_file.flush()
+        except (IOError, BlockingIOError):
+            # Another instance is already running; read its PID
+            try:
+                with open(LOCK_FILE_PATH, "r") as f:
+                    old_pid = int(f.read().strip())
+                if old_pid != os.getpid():
+                    print(f"[Flow Bridge] Replacing existing instance (PID: {old_pid})...")
+                    os.kill(old_pid, signal.SIGTERM)
+                    time.sleep(0.4)
+                    # Retry acquiring lock
+                    fcntl.flock(self._lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    self._lock_file.seek(0)
+                    self._lock_file.truncate()
+                    self._lock_file.write(f"{os.getpid()}\n")
+                    self._lock_file.flush()
+            except Exception:
+                print("[Flow Bridge] Another instance is already running. Exiting.")
+                sys.exit(0)
+
     def run(self) -> None:
+        self._acquire_single_instance_lock()
         self._setup_signal_handlers()
         self.print_status()
 
