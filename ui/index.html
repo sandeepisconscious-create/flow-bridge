@@ -132,6 +132,7 @@
     .control-label-group {
       display: flex;
       flex-direction: column;
+      pointer-events: none;
     }
 
     .control-label {
@@ -139,16 +140,19 @@
       font-weight: 600;
       color: var(--text);
       letter-spacing: -0.01em;
+      pointer-events: none;
     }
 
     .control-status-text {
       font-size: 10px;
       color: var(--text-dim);
+      pointer-events: none;
     }
 
     .control-status-text.active {
       color: var(--text-muted);
       font-weight: 500;
+      pointer-events: none;
     }
 
     /* Apple-Style Sliding Toggle Switch - Monochromatic */
@@ -162,6 +166,7 @@
       cursor: pointer;
       flex-shrink: 0;
       border: 1px solid #3f3f46;
+      pointer-events: none;
     }
 
     .ios-switch::after {
@@ -561,6 +566,11 @@
     let autoPauseMedia = true;
     let updateData = null;
 
+    let pauseToggleLockUntil = 0;
+    let mediaToggleLockUntil = 0;
+    let isTogglingPause = false;
+    let isTogglingMedia = false;
+
     async function fetchState() {
       try {
         const res = await fetch('/api/state');
@@ -571,8 +581,13 @@
           document.getElementById('app-version-label').textContent = 'v' + data.version;
         }
 
-        updatePauseButton(data.paused);
-        updateMediaButton(data.auto_pause_media);
+        const now = Date.now();
+        if (now > pauseToggleLockUntil) {
+          updatePauseButton(data.paused);
+        }
+        if (now > mediaToggleLockUntil) {
+          updateMediaButton(data.auto_pause_media);
+        }
         renderApps(data.apps);
         rawHistoryItems = data.history || [];
         renderFilteredHistory();
@@ -622,26 +637,54 @@
     }
 
     async function togglePause() {
+      if (isTogglingPause) return;
+      isTogglingPause = true;
+
+      // 1. Optimistic instant visual flip (0ms response)
+      const targetState = !isPaused;
+      updatePauseButton(targetState);
+      pauseToggleLockUntil = Date.now() + 1500;
+
       try {
         const res = await fetch('/api/toggle-pause');
         if (res.ok) {
           const data = await res.json();
           updatePauseButton(data.paused);
+        } else {
+          // Revert on error
+          updatePauseButton(!targetState);
         }
       } catch (e) {
+        updatePauseButton(!targetState);
         console.error(e);
+      } finally {
+        isTogglingPause = false;
       }
     }
 
     async function toggleMediaPause() {
+      if (isTogglingMedia) return;
+      isTogglingMedia = true;
+
+      // 1. Optimistic instant visual flip (0ms response)
+      const targetState = !autoPauseMedia;
+      updateMediaButton(targetState);
+      mediaToggleLockUntil = Date.now() + 1500;
+
       try {
         const res = await fetch('/api/toggle-media-pause');
         if (res.ok) {
           const data = await res.json();
           updateMediaButton(data.auto_pause_media);
+        } else {
+          // Revert on error
+          updateMediaButton(!targetState);
         }
       } catch (e) {
+        updateMediaButton(!targetState);
         console.error(e);
+      } finally {
+        isTogglingMedia = false;
       }
     }
 

@@ -29,7 +29,7 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Dict, List, Optional, Set, Tuple
 
-CURRENT_VERSION = "1.1.0"
+CURRENT_VERSION = "1.1.1"
 GITHUB_REPO = "sandeepisconscious-create/flow-bridge"
 
 LOCK_FILE_PATH = os.path.expanduser("~/.flow_bridge.lock")
