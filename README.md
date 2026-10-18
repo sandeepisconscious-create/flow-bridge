@@ -35,7 +35,7 @@ No browser extensions. No setup headaches. It just works in the background.
 Choose whichever is easier for you:
 
 ### Method 1: Double-Click Installer (Easiest)
-1. Download **`FlowBridge-Installer.dmg`** from [Releases](https://github.com/sandeepisconscious-create/flow-bridge/releases).
+1. Download **[FlowBridge-Installer.dmg](https://github.com/sandeepisconscious-create/flow-bridge/releases/download/v1.0.0/FlowBridge-Installer.dmg)** (or check [Releases](https://github.com/sandeepisconscious-create/flow-bridge/releases)).
 2. Double-click the file and drag **FlowBridge** into your **Applications** folder.
 3. Open **FlowBridge** once. That’s it! It will now run silently every time your Mac starts.
 
