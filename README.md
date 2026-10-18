@@ -96,4 +96,4 @@ Complex websites often drop focus or ignore simulated keystrokes while voice pop
 ---
 
 ## 📄 License
-MIT © Sandeep Rao
+MIT © Sandheep Rao
