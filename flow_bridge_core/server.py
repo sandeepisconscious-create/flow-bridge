@@ -103,6 +103,31 @@ def start_ui_server(daemon: FlowBridgeDaemon, port: int = 49231) -> ThreadingHTT
                 self.wfile.write(body)
                 return
 
+            elif self.path == "/api/quit":
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "quitting"}).encode("utf-8"))
+                def do_quit():
+                    time.sleep(0.3)
+                    daemon.stop()
+                    # Also quit any running native FlowBridge macOS app wrapper
+                    try:
+                        subprocess.run(["pkill", "-f", "FlowBridge.app/Contents/MacOS/FlowBridge"], capture_output=True)
+                    except Exception:
+                        pass
+                    # Unload launchd service so it doesn't instantly resurrect
+                    try:
+                        plist_path = os.path.expanduser("~/Library/LaunchAgents/com.flowbridge.clipboard.sync.plist")
+                        if os.path.exists(plist_path):
+                            subprocess.run(["launchctl", "unload", plist_path], capture_output=True)
+                    except Exception:
+                        pass
+                    os._exit(0)
+                threading.Thread(target=do_quit, daemon=True).start()
+                return
+
             self.send_response(404)
             self.end_headers()
 

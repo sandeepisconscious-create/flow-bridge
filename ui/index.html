@@ -468,6 +468,21 @@
       color: var(--text);
     }
 
+    .quit-link {
+      background: none;
+      border: none;
+      padding: 0;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 11px;
+      font-family: inherit;
+      transition: color 0.15s ease;
+    }
+
+    .quit-link:hover {
+      color: #ef4444;
+    }
+
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(-4px); }
       to { opacity: 1; transform: translateY(0); }
@@ -547,9 +562,11 @@
   <!-- Minimal Footer with Check for Updates -->
   <footer class="footer">
     <div class="footer-left">
-      <span id="app-version-label">v1.0.9</span>
+      <span id="app-version-label">v1.1.2</span>
       <span>•</span>
       <button class="check-update-link" id="check-update-btn" onclick="manualCheckUpdate()">Check for updates</button>
+      <span>•</span>
+      <button class="quit-link" id="quit-app-btn" onclick="quitFlowBridge()" title="Stop Flow Bridge and quit">Quit</button>
     </div>
     <span>Kernel Event Sync (0.0% CPU)</span>
   </footer>
@@ -831,6 +848,19 @@
       const div = document.createElement('div');
       div.textContent = str;
       return div.innerHTML;
+    }
+
+    async function quitFlowBridge() {
+      if (!confirm('Are you sure you want to quit Flow Bridge?')) return;
+      try {
+        await fetch('/api/quit', { method: 'POST' });
+      } catch (e) {}
+      document.body.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:80vh;text-align:center;color:#8e8e93;gap:12px;">
+          <div style="font-size:16px;font-weight:600;color:#ededed;">Flow Bridge Stopped</div>
+          <div style="font-size:12px;">The application and daemon have quit cleanly. You can close this window.</div>
+        </div>
+      `;
     }
 
     fetchState();

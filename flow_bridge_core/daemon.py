@@ -47,6 +47,10 @@ class FlowBridgeDaemon:
         self._watched_fds: Dict[int, str] = {}
         self._lock_file = None
 
+    def stop(self):
+        """Signals the daemon loop to terminate cleanly."""
+        self._running = False
+
     def _app_has_native_mute(self, app_name: str) -> bool:
         """Checks if the given dictation engine has a built-in mute/pause feature enabled."""
         if app_name == "Wispr Flow":

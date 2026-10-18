@@ -43,10 +43,12 @@ cat <<'EOF' > "$DIST_DIR/launcher.m"
     NSString *home = NSHomeDirectory();
     NSString *targetDir = [home stringByAppendingPathComponent:@".flow-bridge"];
     NSString *targetScript = [targetDir stringByAppendingPathComponent:@"flow_bridge.py"];
+    NSString *targetCore = [targetDir stringByAppendingPathComponent:@"flow_bridge_core"];
     NSString *targetUI = [targetDir stringByAppendingPathComponent:@"ui"];
     
     NSString *bundleRes = [[NSBundle mainBundle] resourcePath];
     NSString *srcScript = [bundleRes stringByAppendingPathComponent:@"flow_bridge.py"];
+    NSString *srcCore = [bundleRes stringByAppendingPathComponent:@"flow_bridge_core"];
     NSString *srcUI = [bundleRes stringByAppendingPathComponent:@"ui"];
     
     // 1. Sync files into ~/.flow-bridge
@@ -56,6 +58,10 @@ cat <<'EOF' > "$DIST_DIR/launcher.m"
         [fm copyItemAtPath:srcScript toPath:targetScript error:nil];
         NSDictionary *perms = @{NSFilePosixPermissions: @0755};
         [fm setAttributes:perms ofItemAtPath:targetScript error:nil];
+    }
+    if ([fm fileExistsAtPath:srcCore]) {
+        [fm removeItemAtPath:targetCore error:nil];
+        [fm copyItemAtPath:srcCore toPath:targetCore error:nil];
     }
     if ([fm fileExistsAtPath:srcUI]) {
         [fm removeItemAtPath:targetUI error:nil];
@@ -80,7 +86,8 @@ cat <<'EOF' > "$DIST_DIR/launcher.m"
     img.size = NSMakeSize(18, 18);
     self.statusItem.button.image = img;
     self.statusItem.button.target = self;
-    self.statusItem.button.action = @selector(togglePopover:);
+    self.statusItem.button.action = @selector(statusItemClicked:);
+    [self.statusItem.button sendActionOn:(NSEventMaskLeftMouseUp | NSEventMaskRightMouseUp)];
     
     // Setup Menu Bar Popover
     self.popover = [[NSPopover alloc] init];
@@ -120,6 +127,68 @@ cat <<'EOF' > "$DIST_DIR/launcher.m"
     [self.window.contentView addSubview:self.windowWebView];
     [self.window makeKeyAndOrderFront:nil];
     [NSApp activateIgnoringOtherApps:YES];
+}
+
+- (void)statusItemClicked:(id)sender {
+    NSEvent *event = [NSApp currentEvent];
+    if (event.type == NSEventTypeRightMouseUp || (event.modifierFlags & NSEventModifierFlagControl)) {
+        [self showContextMenu];
+    } else {
+        [self togglePopover:sender];
+    }
+}
+
+- (void)showContextMenu {
+    if (self.popover.isShown) {
+        [self.popover performClose:nil];
+    }
+    NSMenu *menu = [[NSMenu alloc] initWithTitle:@"Flow Bridge"];
+    
+    NSMenuItem *header = [[NSMenuItem alloc] initWithTitle:@"Flow Bridge v1.1.2" action:nil keyEquivalent:@""];
+    [header setEnabled:NO];
+    [menu addItem:header];
+    [menu addItem:[NSMenuItem separatorItem]];
+    
+    NSMenuItem *openDashboard = [[NSMenuItem alloc] initWithTitle:@"Open Dashboard Window" action:@selector(openWindowAction:) keyEquivalent:@"o"];
+    openDashboard.target = self;
+    [menu addItem:openDashboard];
+    
+    NSMenuItem *toggleSync = [[NSMenuItem alloc] initWithTitle:@"Toggle Sync (Pause / Resume)" action:@selector(toggleSyncAction:) keyEquivalent:@"p"];
+    toggleSync.target = self;
+    [menu addItem:toggleSync];
+    
+    [menu addItem:[NSMenuItem separatorItem]];
+    
+    NSMenuItem *quitItem = [[NSMenuItem alloc] initWithTitle:@"Quit Flow Bridge" action:@selector(quitAction:) keyEquivalent:@"q"];
+    quitItem.target = self;
+    [menu addItem:quitItem];
+    
+    [menu popUpMenuPositioningItem:nil atLocation:NSZeroPoint inView:self.statusItem.button];
+}
+
+- (void)openWindowAction:(id)sender {
+    [self.windowWebView reload];
+    [self.window makeKeyAndOrderFront:nil];
+    [NSApp activateIgnoringOtherApps:YES];
+}
+
+- (void)toggleSyncAction:(id)sender {
+    NSURL *url = [NSURL URLWithString:@"http://127.0.0.1:49231/api/pause"];
+    NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:url];
+    req.HTTPMethod = @"POST";
+    [[[NSURLSession sharedSession] dataTaskWithRequest:req] resume];
+}
+
+- (void)quitAction:(id)sender {
+    // Call server quit endpoint to cleanly unload service
+    NSURL *url = [NSURL URLWithString:@"http://127.0.0.1:49231/api/quit"];
+    NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:url];
+    req.HTTPMethod = @"POST";
+    [[[NSURLSession sharedSession] dataTaskWithRequest:req] resume];
+    
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        [NSApp terminate:nil];
+    });
 }
 
 - (void)togglePopover:(id)sender {
