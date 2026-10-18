@@ -62,13 +62,34 @@ fi
 
 chmod +x "$TARGET_SCRIPT"
 
-# 5. Stop existing launchd agent if running
+# 5. Compile native launcher wrapper binary so macOS displays "FlowBridge"
+# instead of generic "python3" in Login Items & Background Activity notifications
+LAUNCHER_BIN="$INSTALL_DIR/FlowBridge"
+if command -v clang &>/dev/null; then
+    echo -e " • Creating native FlowBridge launcher..."
+    clang -O2 -x c - -o "$LAUNCHER_BIN" << EOF
+#include <unistd.h>
+#include <stdlib.h>
+int main(int argc, char *argv[]) {
+    char *args[] = {"$PYTHON_BIN", "$TARGET_SCRIPT", NULL};
+    execv("$PYTHON_BIN", args);
+    return 1;
+}
+EOF
+    chmod +x "$LAUNCHER_BIN"
+    EXEC_CMD="<string>$LAUNCHER_BIN</string>"
+else
+    EXEC_CMD="<string>$PYTHON_BIN</string>
+        <string>$TARGET_SCRIPT</string>"
+fi
+
+# 6. Stop existing launchd agent if running
 if launchctl list | grep -q "com.flowbridge.clipboard.sync"; then
     echo -e " • Stopping existing background service..."
     launchctl unload "$PLIST_FILE" 2>/dev/null || true
 fi
 
-# 6. Generate LaunchAgent Plist
+# 7. Generate LaunchAgent Plist
 echo -e " • Configuring background auto-start service (launchd)..."
 cat <<EOF > "$PLIST_FILE"
 <?xml version="1.0" encoding="UTF-8"?>
@@ -79,8 +100,7 @@ cat <<EOF > "$PLIST_FILE"
     <string>com.flowbridge.clipboard.sync</string>
     <key>ProgramArguments</key>
     <array>
-        <string>$PYTHON_BIN</string>
-        <string>$TARGET_SCRIPT</string>
+        $EXEC_CMD
     </array>
     <key>RunAtLoad</key>
     <true/>
@@ -96,7 +116,7 @@ cat <<EOF > "$PLIST_FILE"
 </plist>
 EOF
 
-# 7. Start the service
+# 8. Start the service
 launchctl load "$PLIST_FILE"
 
 echo -e "\n${BOLD}${GREEN}✅ Flow Bridge is installed and running in the background!${NC}"
