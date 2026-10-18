@@ -141,6 +141,24 @@ echo " • Mounted at: $MOUNT_DIR"
 cp -R "$APP_PATH" "$MOUNT_DIR/"
 ln -s /Applications "$MOUNT_DIR/Applications"
 
+# Add a 1-click double-clickable Launch script inside the DMG that automatically un-quarantines and opens
+cat <<'HELPER_EOF' > "$MOUNT_DIR/Open FlowBridge.command"
+#!/usr/bin/env bash
+DIR="$(cd "$(dirname "$0")" && pwd)"
+APP="/Applications/FlowBridge.app"
+
+if [[ ! -d "$APP" ]]; then
+    echo "Copying FlowBridge to /Applications..."
+    cp -R "$DIR/FlowBridge.app" /Applications/
+fi
+
+echo "Activating FlowBridge..."
+xattr -cr "$APP" 2>/dev/null || true
+open "$APP"
+exit 0
+HELPER_EOF
+chmod +x "$MOUNT_DIR/Open FlowBridge.command"
+
 # Set volume icon if available
 if [[ -f "$ICON_PATH" ]]; then
     cp "$ICON_PATH" "$MOUNT_DIR/.VolumeIcon.icns"
@@ -148,7 +166,7 @@ if [[ -f "$ICON_PATH" ]]; then
     SetFile -a C "$MOUNT_DIR" 2>/dev/null || true
 fi
 
-# 4. Use AppleScript to style the Finder window (140px icons, side-by-side, compact 560x360 window)
+# 4. Use AppleScript to style the Finder window (side-by-side, compact window)
 echo " • Configuring Finder window layout..."
 osascript <<EOF || true
 tell application "Finder"
@@ -157,17 +175,18 @@ tell application "Finder"
         set current view of container window to icon view
         set toolbar visible of container window to false
         set statusbar visible of container window to false
-        set the bounds of container window to {400, 200, 960, 560}
+        set the bounds of container window to {360, 200, 960, 560}
         
         set viewOptions to the icon view options of container window
-        set icon size of viewOptions to 128
-        set text size of viewOptions to 13
+        set icon size of viewOptions to 110
+        set text size of viewOptions to 12
         set label position of viewOptions to bottom
         set arrangement of viewOptions to not arranged
         
-        -- Place FlowBridge on the left, Applications on the right
-        set position of item "FlowBridge.app" of container window to {140, 160}
-        set position of item "Applications" of container window to {420, 160}
+        -- Place FlowBridge on the left, Applications in the middle, Open FlowBridge on the right
+        set position of item "FlowBridge.app" of container window to {120, 160}
+        set position of item "Applications" of container window to {320, 160}
+        set position of item "Open FlowBridge.command" of container window to {490, 160}
         
         close
         open

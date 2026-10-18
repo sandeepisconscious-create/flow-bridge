@@ -47,10 +47,13 @@ If you arrived here searching for any of these issues, Flow Bridge is the direct
 Choose whichever is easier for you:
 
 ### Method 1: Double-Click Installer (Easiest)
-1. Download **[FlowBridge-Installer.dmg (Latest v1.0.3)](https://github.com/sandeepisconscious-create/flow-bridge/releases/download/v1.0.3/FlowBridge-Installer.dmg)** (or check [Releases](https://github.com/sandeepisconscious-create/flow-bridge/releases)).
-2. Double-click the file and drag **FlowBridge** into your **Applications** folder.
-3. Open **FlowBridge** once.
-   *(Note: Since this is an open-source tool, if macOS asks to verify on first launch, simply right-click `FlowBridge.app` in Applications and choose **Open**).*
+1. Download **[FlowBridge-Installer.dmg (Latest v1.0.4)](https://github.com/sandeepisconscious-create/flow-bridge/releases/download/v1.0.4/FlowBridge-Installer.dmg)** (or check [Releases](https://github.com/sandeepisconscious-create/flow-bridge/releases)).
+2. Open the downloaded DMG and drag **FlowBridge** into your **Applications** folder.
+3. **To open for the first time**:
+   - Right-click (or Control-click) **`FlowBridge.app`** in Applications and select **Open** → then click **Open**.
+   - *(Or double-click the `Open FlowBridge.command` helper right inside the DMG).*
+   
+   Your browser will immediately pop up with the dictation dashboard!
 
 ---
 
