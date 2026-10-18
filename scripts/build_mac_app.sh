@@ -6,7 +6,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DIST_DIR="$SCRIPT_DIR/dist"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+DIST_DIR="$REPO_ROOT/dist"
 APP_NAME="FlowBridge.app"
 APP_PATH="$DIST_DIR/$APP_NAME"
 DMG_NAME="FlowBridge-Installer.dmg"
@@ -43,7 +44,7 @@ osacompile -e "$APPLESCRIPT_SOURCE" -o "$APP_PATH"
 # 2. Bundle python sync engine inside the app's Resources directory
 RESOURCES_DIR="$APP_PATH/Contents/Resources"
 mkdir -p "$RESOURCES_DIR"
-cp "$SCRIPT_DIR/wispr_clipboard_sync.py" "$RESOURCES_DIR/wispr_clipboard_sync.py"
+cp "$REPO_ROOT/wispr_clipboard_sync.py" "$RESOURCES_DIR/wispr_clipboard_sync.py"
 chmod +x "$RESOURCES_DIR/wispr_clipboard_sync.py"
 
 # Update Info.plist:

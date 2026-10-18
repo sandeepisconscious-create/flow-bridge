@@ -41,7 +41,7 @@ curl -fsSL https://raw.githubusercontent.com/sandeepisconscious-create/flow-brid
 
 *To uninstall at any time:*
 ```bash
-curl -fsSL https://raw.githubusercontent.com/sandeepisconscious-create/flow-bridge/main/uninstall.sh | bash
+curl -fsSL https://raw.githubusercontent.com/sandeepisconscious-create/flow-bridge/main/scripts/uninstall.sh | bash
 ```
 
 ---
@@ -49,11 +49,11 @@ curl -fsSL https://raw.githubusercontent.com/sandeepisconscious-create/flow-brid
 ### Option 2: Mac Drag-and-Drop `.dmg` Installer
 1. Download **`FlowBridge-Installer.dmg`** from [Releases](https://github.com/sandeepisconscious-create/flow-bridge/releases).
 2. Open the `.dmg` and drag **`FlowBridge.app`** into your **Applications** folder.
-3. Launch `FlowBridge.app` and choose **"Install on Startup"**.
+3. Launch `FlowBridge.app` once. It automatically registers to run silently on startup.
 
 > **Building the DMG locally:**
 > ```bash
-> ./build_mac_app.sh
+> ./scripts/build_mac_app.sh
 > ```
 > This creates a distributable `dist/FlowBridge-Installer.dmg`.
 
