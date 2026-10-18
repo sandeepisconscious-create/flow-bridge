@@ -29,7 +29,7 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Dict, List, Optional, Set, Tuple
 
-CURRENT_VERSION = "1.0.9"
+CURRENT_VERSION = "1.1.0"
 GITHUB_REPO = "sandeepisconscious-create/flow-bridge"
 
 LOCK_FILE_PATH = os.path.expanduser("~/.flow_bridge.lock")
@@ -52,6 +52,7 @@ class DaemonConfig:
     settle_delay_sec: float = 0.35
     reassert_attempts: int = 3
     reassert_interval_sec: float = 0.15
+    auto_pause_media: bool = True
     show_notifications: bool = False
     verbose: bool = False
 
@@ -160,6 +161,267 @@ class Notifier:
         script = f'display notification "{clean_msg}" with title "{title}" subtitle "{subtitle}"'
         try:
             subprocess.run(["osascript", "-e", script], capture_output=True, timeout=1.5)
+        except Exception:
+            pass
+
+
+class MediaController:
+    """Manages system-wide audio and video pause/resume via CoreAudio Hardware Muting and MediaRemote."""
+
+    _mr = None
+    _ca = None
+    _out_dev = None
+    _addr_mute = None
+    _was_already_muted = False
+    _is_muted_by_us = False
+
+    @classmethod
+    def _fourcc(cls, s: str) -> int:
+        return int.from_bytes(s.encode("latin1"), byteorder="big")
+
+    @classmethod
+    def _init(cls) -> None:
+        if cls._mr is None:
+            try:
+                cls._mr = ctypes.cdll.LoadLibrary("/System/Library/PrivateFrameworks/MediaRemote.framework/MediaRemote")
+                cls._mr.MRMediaRemoteSendCommand.restype = ctypes.c_bool
+                cls._mr.MRMediaRemoteSendCommand.argtypes = [ctypes.c_int32, ctypes.c_void_p]
+            except Exception:
+                cls._mr = False
+
+        if cls._ca is None:
+            try:
+                ca_path = ctypes.util.find_library("CoreAudio")
+                if ca_path:
+                    cls._ca = ctypes.cdll.LoadLibrary(ca_path)
+                    cls._addr_mute = AudioObjectPropertyAddress(cls._fourcc("mute"), cls._fourcc("outp"), 0)
+            except Exception:
+                cls._ca = False
+
+    @classmethod
+    def _get_default_output_device(cls) -> Optional[int]:
+        if not cls._ca:
+            return None
+        try:
+            addr_def = AudioObjectPropertyAddress(cls._fourcc("dOut"), cls._fourcc("glob"), 0)
+            dev = ctypes.c_uint32(0)
+            sz = ctypes.c_uint32(ctypes.sizeof(dev))
+            status = cls._ca.AudioObjectGetPropertyData(1, ctypes.byref(addr_def), 0, None, ctypes.byref(sz), ctypes.byref(dev))
+            return dev.value if status == 0 else None
+        except Exception:
+            return None
+
+    @classmethod
+    def pause(cls) -> bool:
+        """Immediately mutes all audio output (YouTube, Chrome, music, videos) and sends media pause."""
+        cls._init()
+
+        # 1. Hardware Output Mute (sub-millisecond instant silence across all apps and tabs)
+        dev_id = cls._get_default_output_device()
+        if cls._ca and dev_id and cls._addr_mute:
+            try:
+                curr_mute = ctypes.c_uint32(0)
+                sz_mute = ctypes.c_uint32(ctypes.sizeof(curr_mute))
+                cls._ca.AudioObjectGetPropertyData(dev_id, ctypes.byref(cls._addr_mute), 0, None, ctypes.byref(sz_mute), ctypes.byref(curr_mute))
+                cls._was_already_muted = (curr_mute.value == 1)
+
+                if not cls._was_already_muted:
+                    mute_val = ctypes.c_uint32(1)
+                    cls._ca.AudioObjectSetPropertyData(dev_id, ctypes.byref(cls._addr_mute), 0, None, ctypes.sizeof(mute_val), ctypes.byref(mute_val))
+                    cls._is_muted_by_us = True
+                    cls._out_dev = dev_id
+            except Exception:
+                pass
+
+        # 2. MediaRemote Pause signal
+        if cls._mr:
+            try:
+                # 1 = kMRPause
+                cls._mr.MRMediaRemoteSendCommand(1, None)
+            except Exception:
+                pass
+        return True
+
+    @classmethod
+    def resume(cls) -> bool:
+        """Restores audio output volume and resumes playback."""
+        cls._init()
+
+        # 1. Unmute hardware output if we were the one who muted it
+        if cls._ca and cls._is_muted_by_us and cls._addr_mute:
+            try:
+                # Unmute both the device we recorded muting and the current default output
+                target_devs = set()
+                if cls._out_dev:
+                    target_devs.add(cls._out_dev)
+                curr_dev = cls._get_default_output_device()
+                if curr_dev:
+                    target_devs.add(curr_dev)
+
+                unmute_val = ctypes.c_uint32(0)
+                for dev_id in target_devs:
+                    cls._ca.AudioObjectSetPropertyData(dev_id, ctypes.byref(cls._addr_mute), 0, None, ctypes.sizeof(unmute_val), ctypes.byref(unmute_val))
+                cls._is_muted_by_us = False
+            except Exception:
+                pass
+
+        # 2. MediaRemote Play signal
+        if cls._mr:
+            try:
+                # 0 = kMRPlay
+                cls._mr.MRMediaRemoteSendCommand(0, None)
+            except Exception:
+                pass
+        return True
+
+
+class ShortcutWatcher:
+    """Monitors push-to-talk shortcut keys (Fn/Globe, Ctrl, Option) using low-overhead OS queries."""
+
+    _cg = None
+    _objc = None
+    _msgSend = None
+    _NSEvent = None
+    _flags_sel = None
+
+    @classmethod
+    def _init(cls) -> None:
+        if cls._cg is None:
+            try:
+                cg_path = ctypes.util.find_library("CoreGraphics")
+                if cg_path:
+                    cls._cg = ctypes.cdll.LoadLibrary(cg_path)
+                    cls._cg.CGEventSourceKeyState.restype = ctypes.c_bool
+                    cls._cg.CGEventSourceKeyState.argtypes = [ctypes.c_int32, ctypes.c_uint16]
+            except Exception:
+                cls._cg = False
+
+        if cls._objc is None:
+            try:
+                objc_path = ctypes.util.find_library("objc")
+                appkit_path = ctypes.util.find_library("AppKit")
+                if objc_path and appkit_path:
+                    cls._objc = ctypes.cdll.LoadLibrary(objc_path)
+                    ctypes.cdll.LoadLibrary(appkit_path)
+                    cls._objc.objc_getClass.restype = ctypes.c_void_p
+                    cls._objc.objc_getClass.argtypes = [ctypes.c_char_p]
+                    cls._objc.sel_registerName.restype = ctypes.c_void_p
+                    cls._objc.sel_registerName.argtypes = [ctypes.c_char_p]
+                    cls._msgSend = ctypes.cast(
+                        cls._objc.objc_msgSend,
+                        ctypes.CFUNCTYPE(ctypes.c_ulonglong, ctypes.c_void_p, ctypes.c_void_p)
+                    )
+                    cls._NSEvent = cls._objc.objc_getClass(b"NSEvent")
+                    cls._flags_sel = cls._objc.sel_registerName(b"modifierFlags")
+            except Exception:
+                cls._objc = False
+
+    @classmethod
+    def which_app_shortcut_held(cls) -> Optional[str]:
+        """Returns the name of the app whose shortcut is currently held, or None."""
+        cls._init()
+        flags = 0
+        if cls._msgSend and cls._NSEvent and cls._flags_sel:
+            try:
+                flags = cls._msgSend(cls._NSEvent, cls._flags_sel)
+            except Exception:
+                flags = 0
+
+        cg = cls._cg
+
+        # 1. Wispr Flow: Fn / Globe key (keycode 63, flag 0x800000)
+        fn_held = bool(flags & 0x800000) or (cg and cg.CGEventSourceKeyState(0, 63))
+        if fn_held:
+            return "Wispr Flow"
+
+        # 2. Handy: Left Ctrl (keycode 59, flag 0x40000) or Right Ctrl (62)
+        ctrl_held = bool(flags & 0x40000) or (cg and (cg.CGEventSourceKeyState(0, 59) or cg.CGEventSourceKeyState(0, 62)))
+        if ctrl_held:
+            return "Handy"
+
+        # 3. Detta / Generic fallback: Option key (keycode 58, 61, flag 0x80000)
+        opt_held = bool(flags & 0x80000) or (cg and (cg.CGEventSourceKeyState(0, 58) or cg.CGEventSourceKeyState(0, 61)))
+        if opt_held:
+            return "Detta"
+
+        return None
+
+    @classmethod
+    def is_shortcut_held(cls) -> bool:
+        """Returns True if any push-to-talk key is currently held down."""
+        return cls.which_app_shortcut_held() is not None
+
+
+class AudioObjectPropertyAddress(ctypes.Structure):
+    _fields_ = [
+        ("mSelector", ctypes.c_uint32),
+        ("mScope", ctypes.c_uint32),
+        ("mElement", ctypes.c_uint32),
+    ]
+
+
+class MicrophoneWatcher:
+    """Zero-overhead macOS CoreAudio default input device activity monitor."""
+
+    def __init__(self, on_state_change):
+        self.on_state_change = on_state_change
+        self.is_recording = False
+        self._device_id: Optional[int] = None
+        self._cb = None
+        self._ca = None
+        self._setup()
+
+    @staticmethod
+    def _fourcc(s: str) -> int:
+        return int.from_bytes(s.encode("latin1"), byteorder="big")
+
+    def _get_default_input_device(self) -> Optional[int]:
+        if not self._ca:
+            return None
+        addr = AudioObjectPropertyAddress(self._fourcc("dIn "), self._fourcc("glob"), 0)
+        dev = ctypes.c_uint32(0)
+        sz = ctypes.c_uint32(ctypes.sizeof(dev))
+        status = self._ca.AudioObjectGetPropertyData(1, ctypes.byref(addr), 0, None, ctypes.byref(sz), ctypes.byref(dev))
+        return dev.value if status == 0 else None
+
+    def check_is_running(self) -> bool:
+        if not self._ca or not self._device_id:
+            return False
+        addr = AudioObjectPropertyAddress(self._fourcc("gone"), self._fourcc("glob"), 0)
+        running = ctypes.c_uint32(0)
+        sz = ctypes.c_uint32(ctypes.sizeof(running))
+        status = self._ca.AudioObjectGetPropertyData(self._device_id, ctypes.byref(addr), 0, None, ctypes.byref(sz), ctypes.byref(running))
+        return (running.value != 0) if status == 0 else False
+
+    def _setup(self) -> None:
+        try:
+            ca_path = ctypes.util.find_library("CoreAudio")
+            if not ca_path:
+                return
+            self._ca = ctypes.cdll.LoadLibrary(ca_path)
+            self._device_id = self._get_default_input_device()
+            if not self._device_id:
+                return
+
+            AudioListenerProc = ctypes.CFUNCTYPE(
+                ctypes.c_int32,
+                ctypes.c_uint32,
+                ctypes.c_uint32,
+                ctypes.POINTER(AudioObjectPropertyAddress),
+                ctypes.c_void_p
+            )
+
+            def callback(inObjectID, inNumberAddresses, inAddresses, inClientData):
+                now_running = self.check_is_running()
+                if now_running != self.is_recording:
+                    self.is_recording = now_running
+                    self.on_state_change(self.is_recording)
+                return 0
+
+            self._cb = AudioListenerProc(callback)
+            addr = AudioObjectPropertyAddress(self._fourcc("gone"), self._fourcc("glob"), 0)
+            self._ca.AudioObjectAddPropertyListener(self._device_id, ctypes.byref(addr), self._cb, None)
+            self.is_recording = self.check_is_running()
         except Exception:
             pass
 
@@ -357,6 +619,93 @@ class FlowBridgeDaemon:
         self._cached_update_info: Optional[dict] = None
         self._last_update_check: float = 0.0
 
+        # Audio/Video pause state
+        self._auto_paused_media = False
+        self._mic_watcher: Optional[MicrophoneWatcher] = None
+
+    def _app_has_native_mute(self, app_name: str) -> bool:
+        """Checks if the given dictation engine has a built-in mute/pause feature enabled."""
+        if app_name == "Wispr Flow":
+            # Wispr Flow natively supports shouldMuteAudio / shouldPauseAudio in config.json
+            try:
+                cfg_path = os.path.expanduser("~/Library/Application Support/Wispr Flow/config.json")
+                if os.path.exists(cfg_path):
+                    with open(cfg_path, "r") as f:
+                        data = json.load(f)
+                    user_prefs = data.get("prefs", {}).get("user", {})
+                    return bool(user_prefs.get("shouldMuteAudio") or user_prefs.get("shouldPauseAudio"))
+            except Exception:
+                pass
+            return False
+
+        elif app_name == "Handy":
+            # Handy natively supports mute_while_recording in settings_store.json
+            try:
+                cfg_path = os.path.expanduser("~/Library/Application Support/com.pais.handy/settings_store.json")
+                if os.path.exists(cfg_path):
+                    with open(cfg_path, "r") as f:
+                        data = json.load(f)
+                    return bool(data.get("settings", {}).get("mute_while_recording"))
+            except Exception:
+                pass
+            return False
+
+        # Detta does not have a native background audio muter
+        return False
+
+    def _start_ptt_listener(self) -> None:
+        """Monitors push-to-talk shortcut key hold state.
+        If the app natively handles muting, yields to the native app.
+        For apps without built-in muting (e.g. Detta), applies Flow Bridge's custom hardware mute.
+        """
+        def ptt_loop():
+            was_held = False
+            active_app = None
+            custom_muted = False
+
+            while self._running:
+                if self.config.auto_pause_media and not self.is_paused():
+                    held_app = ShortcutWatcher.which_app_shortcut_held()
+                    if held_app and not was_held:
+                        was_held = True
+                        active_app = held_app
+                        if self._app_has_native_mute(held_app):
+                            # Native app handles muting/pausing itself
+                            custom_muted = False
+                            if self.config.verbose:
+                                print(f"[Flow Bridge] 🎙️ {held_app} shortcut held -> Using native app mute.")
+                        else:
+                            # App lacks native mute (e.g. Detta) -> Flow Bridge provides it
+                            custom_muted = True
+                            self._auto_paused_media = True
+                            MediaController.pause()
+                            if self.config.verbose:
+                                print(f"[Flow Bridge] 🎙️ {held_app} lacks native mute -> Flow Bridge muted audio.")
+                    elif not held_app and was_held:
+                        was_held = False
+                        if custom_muted:
+                            custom_muted = False
+                            self._resume_media_safely()
+                        active_app = None
+                else:
+                    if was_held:
+                        was_held = False
+                        if custom_muted:
+                            custom_muted = False
+                            self._resume_media_safely()
+                        active_app = None
+                time.sleep(0.015)
+
+        t = threading.Thread(target=ptt_loop, daemon=True)
+        t.start()
+
+    def _resume_media_safely(self) -> None:
+        if self._auto_paused_media:
+            MediaController.resume()
+            self._auto_paused_media = False
+            if self.config.verbose:
+                print("[Flow Bridge] ▶️ Shortcut released / dictation ended -> Resumed audio.")
+
     def set_paused(self, paused: bool) -> bool:
         self._paused = paused
         if self.config.verbose:
@@ -449,6 +798,8 @@ class FlowBridgeDaemon:
     def _setup_signal_handlers(self) -> None:
         def handle_stop(signum, frame):
             self._running = False
+            # Immediate safety unmute if daemon is interrupted
+            MediaController.resume()
             print("\n[Flow Bridge] Gracefully stopping daemon...", flush=True)
 
         signal.signal(signal.SIGINT, handle_stop)
@@ -532,6 +883,7 @@ class FlowBridgeDaemon:
                     data = {
                         "version": CURRENT_VERSION,
                         "paused": daemon_self.is_paused(),
+                        "auto_pause_media": daemon_self.config.auto_pause_media,
                         "apps": daemon_self.get_app_status(),
                         "history": daemon_self.get_recent_history(limit=25),
                         "update": daemon_self.check_for_update()
@@ -546,6 +898,15 @@ class FlowBridgeDaemon:
                 elif self.path == "/api/toggle-pause":
                     new_state = daemon_self.set_paused(not daemon_self.is_paused())
                     body = json.dumps({"paused": new_state}).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self.send_header("Access-Control-Allow-Origin", "*")
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+                elif self.path == "/api/toggle-media-pause":
+                    daemon_self.config.auto_pause_media = not daemon_self.config.auto_pause_media
+                    body = json.dumps({"auto_pause_media": daemon_self.config.auto_pause_media}).encode("utf-8")
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json; charset=utf-8")
                     self.send_header("Access-Control-Allow-Origin", "*")
@@ -674,6 +1035,7 @@ class FlowBridgeDaemon:
         self._acquire_single_instance_lock()
         self._setup_signal_handlers()
         self._start_ui_server()
+        self._start_ptt_listener()
         self._setup_kqueue_watchers()
         self.print_status()
 
@@ -752,6 +1114,10 @@ class FlowBridgeDaemon:
                                     subtitle=f"{winner.source_name} Synced",
                                     message=winner.text
                                 )
+
+                            # If media was auto-paused during dictation, resume now
+                            if self._auto_paused_media:
+                                self._resume_media_safely()
                         elif self.config.verbose:
                             print(f"[Flow Bridge] Skipped sync because Flow Bridge is paused: {winner.unique_id}")
 
@@ -769,6 +1135,9 @@ class FlowBridgeDaemon:
                     os.close(fd)
                 except Exception:
                     pass
+
+        # Guarantee audio is unmuted when stopping
+        MediaController.resume()
         print("[Flow Bridge] Daemon stopped.")
 
 

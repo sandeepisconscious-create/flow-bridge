@@ -13,14 +13,10 @@
       --border: #202023;
       --border-hover: #323238;
       --text: #ededed;
-      --text-muted: #80808a;
+      --text-muted: #8e8e93;
       --text-dim: #52525b;
       --green: #22c55e;
-      --green-dim: rgba(34, 197, 94, 0.12);
-      --amber: #f59e0b;
-      --amber-dim: rgba(245, 158, 11, 0.12);
-      --blue: #3b82f6;
-      --blue-dim: rgba(59, 130, 246, 0.15);
+      --green-glow: rgba(34, 197, 94, 0.4);
       --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, sans-serif;
       --font-mono: "SF Mono", Menlo, Monaco, Consolas, monospace;
     }
@@ -38,20 +34,20 @@
       font-family: var(--font-sans);
       font-size: 13px;
       line-height: 1.5;
-      padding: 18px 20px 20px;
+      padding: 16px 20px 20px;
       max-width: 680px;
       margin: 0 auto;
       user-select: none;
     }
 
-    /* Header */
+    /* Top Brand Header */
     .header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 16px;
       padding-bottom: 14px;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
       border-bottom: 1px solid var(--border);
     }
 
@@ -82,137 +78,126 @@
       color: var(--text-muted);
     }
 
-    /* Controls in header */
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
-
+    /* Neutral Subtle Engine Chips (NO GREEN) */
     .header-engines {
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
     }
 
     .engine-chip {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      padding: 3px 8px;
+      padding: 3px 10px;
       border-radius: 999px;
-      background: var(--card);
+      background: #141417;
       border: 1px solid var(--border);
       font-size: 11px;
       font-weight: 500;
-      color: var(--text-muted);
+      color: #909098;
       transition: all 0.15s ease;
     }
 
     .engine-chip.active {
-      color: var(--text);
-      border-color: rgba(34, 197, 94, 0.25);
-      background: #141417;
+      color: #e4e4e7;
+      border-color: #3f3f46;
+      background: #1a1a1e;
     }
 
-    .engine-dot {
-      width: 5px;
-      height: 5px;
-      border-radius: 50%;
-      background: var(--green);
-      flex-shrink: 0;
-    }
-
-    .engine-dot.inactive {
-      background: var(--text-dim);
-    }
-
-    /* Pause / Resume button */
-    .sync-toggle-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 3px 9px;
-      border-radius: 999px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      color: var(--text);
-      font-size: 11px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.15s ease;
-    }
-
-    .sync-toggle-btn:hover {
-      border-color: var(--border-hover);
-      background: #18181c;
-    }
-
-    .sync-toggle-btn.paused {
-      border-color: rgba(245, 158, 11, 0.35);
-      color: var(--amber);
-      background: var(--amber-dim);
-    }
-
-    .sync-indicator {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--green);
-      box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
-    }
-
-    .sync-toggle-btn.paused .sync-indicator {
-      background: var(--amber);
-      box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
-    }
-
-    /* Search & Filter Bar */
-    .search-row {
+    /* Dedicated Controls Bar (Below Divider) */
+    .controls-bar {
       display: flex;
       align-items: center;
-      gap: 10px;
+      justify-content: space-between;
+      gap: 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 10px 16px;
       margin-bottom: 14px;
     }
 
-    .search-wrapper {
-      position: relative;
+    .control-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
       flex: 1;
+      cursor: pointer;
+      user-select: none;
     }
 
-    .search-icon {
-      position: absolute;
-      left: 10px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--text-dim);
-      pointer-events: none;
+    .control-label-group {
+      display: flex;
+      flex-direction: column;
     }
 
-    .search-input {
-      width: 100%;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 7px;
-      padding: 6px 10px 6px 32px;
-      font-size: 12px;
+    .control-label {
+      font-size: 11px;
+      font-weight: 600;
       color: var(--text);
-      outline: none;
-      transition: border-color 0.15s ease;
-      font-family: inherit;
+      letter-spacing: -0.01em;
     }
 
-    .search-input:focus {
-      border-color: #3b82f6;
-    }
-
-    .search-input::placeholder {
+    .control-status-text {
+      font-size: 10px;
       color: var(--text-dim);
     }
 
-    /* Update Banner (Shown when update is available) */
+    .control-status-text.active {
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* Apple-Style Sliding Toggle Switch - Monochromatic */
+    .ios-switch {
+      position: relative;
+      width: 34px;
+      height: 19px;
+      background-color: #27272a;
+      border-radius: 999px;
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+      cursor: pointer;
+      flex-shrink: 0;
+      border: 1px solid #3f3f46;
+    }
+
+    .ios-switch::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 13px;
+      height: 13px;
+      background-color: #71717a;
+      border-radius: 50%;
+      transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    }
+
+    /* Monochromatic Active State (Clean White/Zinc Glow) */
+    .ios-switch.on,
+    .ios-switch.mute-on {
+      background-color: #3f3f46;
+      border-color: #71717a;
+    }
+
+    .ios-switch.on::after,
+    .ios-switch.mute-on::after {
+      transform: translateX(15px);
+      background-color: #ffffff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.6);
+    }
+
+    .control-divider {
+      width: 1px;
+      height: 26px;
+      background: var(--border);
+    }
+
+    /* Update Banner */
     .update-banner {
       display: none;
       align-items: center;
@@ -261,6 +246,49 @@
     .update-btn:disabled {
       opacity: 0.6;
       cursor: not-allowed;
+    }
+
+    /* Search & Filter Bar */
+    .search-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .search-wrapper {
+      position: relative;
+      flex: 1;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      pointer-events: none;
+    }
+
+    .search-input {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 6px 10px 6px 32px;
+      font-size: 12px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s ease;
+      font-family: inherit;
+    }
+
+    .search-input:focus {
+      border-color: #3b82f6;
+    }
+
+    .search-input::placeholder {
+      color: var(--text-dim);
     }
 
     /* Section Bar */
@@ -389,7 +417,7 @@
     .copy-button.copied {
       color: var(--green);
       border-color: rgba(34, 197, 94, 0.4);
-      background: var(--green-dim);
+      background: rgba(34, 197, 94, 0.12);
     }
 
     /* Empty state */
@@ -443,7 +471,7 @@
 </head>
 <body>
 
-  <!-- Header with Brand on Left and Engines + Pause on Right -->
+  <!-- Top Header: Brand Left, Subtle Neutral Engine Chips Right (NO GREEN) -->
   <header class="header">
     <div class="brand">
       <img src="/logo.png" alt="Logo" class="brand-icon">
@@ -452,16 +480,33 @@
         <div class="brand-subtitle">Universal Dictation Copy</div>
       </div>
     </div>
-    <div class="header-actions">
-      <button class="sync-toggle-btn" id="sync-toggle-btn" onclick="togglePause()" title="Click to pause/resume auto clipboard sync">
-        <span class="sync-indicator"></span>
-        <span id="sync-toggle-text">Active</span>
-      </button>
-      <div class="header-engines" id="header-engines">
-        <!-- Populated dynamically -->
-      </div>
+    <div class="header-engines" id="header-engines">
+      <!-- Populated dynamically without green -->
     </div>
   </header>
+
+  <!-- Dedicated Controls Bar (Below Divider) with Monochromatic Toggle Switches on the Right -->
+  <div class="controls-bar">
+    <!-- Sync Toggle -->
+    <div class="control-item" onclick="togglePause()" title="Toggle universal clipboard sync">
+      <div class="control-label-group">
+        <span class="control-label">Universal Clipboard Sync</span>
+        <span class="control-status-text active" id="sync-status-text">Active (⌘+V Ready)</span>
+      </div>
+      <div class="ios-switch on" id="sync-switch"></div>
+    </div>
+
+    <div class="control-divider"></div>
+
+    <!-- Media Auto-Mute Toggle -->
+    <div class="control-item" onclick="toggleMediaPause()" title="Auto-mute background audio/video while you speak">
+      <div class="control-label-group">
+        <span class="control-label">Mute Audio on Dictation</span>
+        <span class="control-status-text" id="media-status-text">Enabled</span>
+      </div>
+      <div class="ios-switch mute-on" id="media-switch"></div>
+    </div>
+  </div>
 
   <!-- Auto-Update Notification Banner -->
   <div class="update-banner" id="update-banner">
@@ -497,11 +542,11 @@
   <!-- Minimal Footer with Check for Updates -->
   <footer class="footer">
     <div class="footer-left">
-      <span id="app-version-label">v1.0.8</span>
+      <span id="app-version-label">v1.0.9</span>
       <span>•</span>
       <button class="check-update-link" id="check-update-btn" onclick="manualCheckUpdate()">Check for updates</button>
     </div>
-    <span>Auto-settle & hold active</span>
+    <span>Kernel Event Sync (0.0% CPU)</span>
   </footer>
 
   <script>
@@ -513,6 +558,7 @@
     let lastRenderHash = '';
     let lastAppsHash = '';
     let isPaused = false;
+    let autoPauseMedia = true;
     let updateData = null;
 
     async function fetchState() {
@@ -526,6 +572,7 @@
         }
 
         updatePauseButton(data.paused);
+        updateMediaButton(data.auto_pause_media);
         renderApps(data.apps);
         rawHistoryItems = data.history || [];
         renderFilteredHistory();
@@ -540,17 +587,36 @@
 
     function updatePauseButton(paused) {
       isPaused = !!paused;
-      const btn = document.getElementById('sync-toggle-btn');
-      const text = document.getElementById('sync-toggle-text');
-      if (btn && text) {
+      const sw = document.getElementById('sync-switch');
+      const text = document.getElementById('sync-status-text');
+      if (sw && text) {
         if (isPaused) {
-          btn.classList.add('paused');
-          text.textContent = 'Paused';
-          btn.title = 'Sync is paused. Click to resume copying dictations.';
+          sw.classList.remove('on');
+          text.classList.remove('active');
+          text.textContent = 'Paused (Sync Off)';
         } else {
-          btn.classList.remove('paused');
-          text.textContent = 'Active';
-          btn.title = 'Sync is active. Click to pause.';
+          sw.classList.add('on');
+          text.classList.add('active');
+          text.textContent = 'Active (⌘+V Ready)';
+        }
+      }
+    }
+
+    function updateMediaButton(enabled) {
+      autoPauseMedia = !!enabled;
+      const sw = document.getElementById('media-switch');
+      const text = document.getElementById('media-status-text');
+      if (sw && text) {
+        if (autoPauseMedia) {
+          sw.classList.add('mute-on');
+          text.classList.add('active');
+          text.textContent = 'Enabled (Instant Mute)';
+          text.style.color = '';
+        } else {
+          sw.classList.remove('mute-on');
+          text.classList.remove('active');
+          text.textContent = 'Disabled';
+          text.style.color = '';
         }
       }
     }
@@ -561,6 +627,18 @@
         if (res.ok) {
           const data = await res.json();
           updatePauseButton(data.paused);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function toggleMediaPause() {
+      try {
+        const res = await fetch('/api/toggle-media-pause');
+        if (res.ok) {
+          const data = await res.json();
+          updateMediaButton(data.auto_pause_media);
         }
       } catch (e) {
         console.error(e);
@@ -638,9 +716,9 @@
       const container = document.getElementById('header-engines');
       if (!container) return;
 
+      // Clean, monochromatic chips without dots
       container.innerHTML = apps.map(app => `
         <div class="engine-chip ${app.available ? 'active' : ''}" title="${app.name}: ${app.available ? 'Connected' : 'Not installed'}">
-          <span class="engine-dot ${app.available ? '' : 'inactive'}"></span>
           <span>${escapeHtml(app.name)}</span>
         </div>
       `).join('');
