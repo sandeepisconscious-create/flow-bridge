@@ -172,6 +172,7 @@ rm -f "$DIST_DIR/launcher.m" "$DIST_DIR/test_status_app.m" "$DIST_DIR/test_statu
 # 2. Bundle python sync engine, UI dashboard, custom icons
 RESOURCES_DIR="$APP_PATH/Contents/Resources"
 cp "$REPO_ROOT/flow_bridge.py" "$RESOURCES_DIR/flow_bridge.py"
+cp -R "$REPO_ROOT/flow_bridge_core" "$RESOURCES_DIR/flow_bridge_core"
 cp -R "$REPO_ROOT/ui" "$RESOURCES_DIR/ui"
 cp "$REPO_ROOT/assets/status_icon.png" "$RESOURCES_DIR/status_icon.png" 2>/dev/null || true
 cp "$REPO_ROOT/assets/status_icon@2x.png" "$RESOURCES_DIR/status_icon@2x.png" 2>/dev/null || true
@@ -195,9 +196,9 @@ cat <<EOF > "$APP_PATH/Contents/Info.plist"
     <key>CFBundleIdentifier</key>
     <string>com.flowbridge.app</string>
     <key>CFBundleVersion</key>
-    <string>1.1.1</string>
+    <string>1.1.2</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.1.1</string>
+    <string>1.1.2</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleExecutable</key>

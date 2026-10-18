@@ -50,6 +50,7 @@ mkdir -p "$INSTALL_DIR/assets"
 if [[ -f "./flow_bridge.py" ]]; then
     echo -e " • Copying local script to ${BOLD}$TARGET_SCRIPT${NC}..."
     cp "./flow_bridge.py" "$TARGET_SCRIPT"
+    cp -R "./flow_bridge_core" "$INSTALL_DIR/" 2>/dev/null || true
     cp -R "./ui/"* "$INSTALL_DIR/ui/" 2>/dev/null || true
     cp -R "./assets/"* "$INSTALL_DIR/assets/" 2>/dev/null || true
 else

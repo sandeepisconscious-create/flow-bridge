@@ -1,0 +1,86 @@
+"""
+Low-latency OS Shortcut Key Hold Monitor.
+"""
+
+from __future__ import annotations
+
+import ctypes
+import ctypes.util
+from typing import Optional
+
+
+class ShortcutWatcher:
+    """Monitors push-to-talk shortcut keys (Fn/Globe, Ctrl, Option) using low-overhead OS queries."""
+
+    _cg = None
+    _objc = None
+    _msgSend = None
+    _NSEvent = None
+    _flags_sel = None
+
+    @classmethod
+    def _init(cls) -> None:
+        if cls._cg is None:
+            try:
+                cg_path = ctypes.util.find_library("CoreGraphics")
+                if cg_path:
+                    cls._cg = ctypes.cdll.LoadLibrary(cg_path)
+                    cls._cg.CGEventSourceKeyState.restype = ctypes.c_bool
+                    cls._cg.CGEventSourceKeyState.argtypes = [ctypes.c_int32, ctypes.c_uint16]
+            except Exception:
+                cls._cg = False
+
+        if cls._objc is None:
+            try:
+                objc_path = ctypes.util.find_library("objc")
+                appkit_path = ctypes.util.find_library("AppKit")
+                if objc_path and appkit_path:
+                    cls._objc = ctypes.cdll.LoadLibrary(objc_path)
+                    ctypes.cdll.LoadLibrary(appkit_path)
+                    cls._objc.objc_getClass.restype = ctypes.c_void_p
+                    cls._objc.objc_getClass.argtypes = [ctypes.c_char_p]
+                    cls._objc.sel_registerName.restype = ctypes.c_void_p
+                    cls._objc.sel_registerName.argtypes = [ctypes.c_char_p]
+                    cls._msgSend = ctypes.cast(
+                        cls._objc.objc_msgSend,
+                        ctypes.CFUNCTYPE(ctypes.c_ulonglong, ctypes.c_void_p, ctypes.c_void_p)
+                    )
+                    cls._NSEvent = cls._objc.objc_getClass(b"NSEvent")
+                    cls._flags_sel = cls._objc.sel_registerName(b"modifierFlags")
+            except Exception:
+                cls._objc = False
+
+    @classmethod
+    def which_app_shortcut_held(cls) -> Optional[str]:
+        """Returns the name of the app whose shortcut is currently held, or None."""
+        cls._init()
+        flags = 0
+        if cls._msgSend and cls._NSEvent and cls._flags_sel:
+            try:
+                flags = cls._msgSend(cls._NSEvent, cls._flags_sel)
+            except Exception:
+                flags = 0
+
+        cg = cls._cg
+
+        # 1. Wispr Flow: Fn / Globe key (keycode 63, flag 0x800000)
+        fn_held = bool(flags & 0x800000) or (cg and cg.CGEventSourceKeyState(0, 63))
+        if fn_held:
+            return "Wispr Flow"
+
+        # 2. Handy: Left Ctrl (keycode 59, flag 0x40000) or Right Ctrl (62)
+        ctrl_held = bool(flags & 0x40000) or (cg and (cg.CGEventSourceKeyState(0, 59) or cg.CGEventSourceKeyState(0, 62)))
+        if ctrl_held:
+            return "Handy"
+
+        # 3. Detta / Generic fallback: Option key (keycode 58, 61, flag 0x80000)
+        opt_held = bool(flags & 0x80000) or (cg and (cg.CGEventSourceKeyState(0, 58) or cg.CGEventSourceKeyState(0, 61)))
+        if opt_held:
+            return "Detta"
+
+        return None
+
+    @classmethod
+    def is_shortcut_held(cls) -> bool:
+        """Returns True if any push-to-talk key is currently held down."""
+        return cls.which_app_shortcut_held() is not None
