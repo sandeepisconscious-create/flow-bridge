@@ -19,60 +19,100 @@ echo "🔨 Building FlowBridge macOS Application bundle..."
 rm -rf "$DIST_DIR"
 mkdir -p "$DIST_DIR"
 
-# 1. Compile AppleScript launcher into a macOS Application bundle (.app)
-APPLESCRIPT_SOURCE="
-on run
-    set appDir to (POSIX path of (path to me))
-    set scriptDir to appDir & \"Contents/Resources/flow_bridge.py\"
-    set uiDir to appDir & \"Contents/Resources/ui\"
-    set pyBin to do shell script \"which python3 || echo /usr/bin/python3\"
-    set userHome to (POSIX path of (path to home folder))
-    set targetDir to userHome & \".flow-bridge\"
-    set targetScript to targetDir & \"/flow_bridge.py\"
-    set targetUI to targetDir & \"/ui\"
-    
-    -- Auto-install into ~/.flow-bridge
-    do shell script \"mkdir -p \" & quoted form of targetDir & \" && cp \" & quoted form of scriptDir & \" \" & quoted form of targetScript & \" && cp -R \" & quoted form of uiDir & \" \" & quoted form of targetDir & \" && chmod +x \" & quoted form of targetScript
-    
-    -- Register LaunchAgent service to start on boot
-    do shell script quoted form of pyBin & \" \" & quoted form of targetScript & \" --install-service\"
-    
-    -- Open Dashboard UI
-    do shell script \"open http://127.0.0.1:49231\"
-    display notification \"Flow Bridge is active! Showing your dictation dashboard.\" with title \"Flow Bridge\" subtitle \"Dictation Hub Active\"
-end run
-"
+# 1. Build Native Cocoa Application Bundle (bypasses osacompile default icon asset catalog)
+mkdir -p "$APP_PATH/Contents/MacOS"
+mkdir -p "$APP_PATH/Contents/Resources"
 
-osacompile -e "$APPLESCRIPT_SOURCE" -o "$APP_PATH"
+cat <<'EOF' > "$DIST_DIR/launcher.m"
+#import <Cocoa/Cocoa.h>
+#import <Foundation/Foundation.h>
 
-# 2. Bundle python sync engine and UI dashboard inside the app's Resources directory
+int main(int argc, const char * argv[]) {
+    @autoreleasepool {
+        NSFileManager *fm = [NSFileManager defaultManager];
+        NSString *home = NSHomeDirectory();
+        NSString *targetDir = [home stringByAppendingPathComponent:@".flow-bridge"];
+        NSString *targetScript = [targetDir stringByAppendingPathComponent:@"flow_bridge.py"];
+        NSString *targetUI = [targetDir stringByAppendingPathComponent:@"ui"];
+        
+        NSString *bundleRes = [[NSBundle mainBundle] resourcePath];
+        NSString *srcScript = [bundleRes stringByAppendingPathComponent:@"flow_bridge.py"];
+        NSString *srcUI = [bundleRes stringByAppendingPathComponent:@"ui"];
+        
+        // 1. Create ~/.flow-bridge
+        [fm createDirectoryAtPath:targetDir withIntermediateDirectories:YES attributes:nil error:nil];
+        
+        // 2. Copy flow_bridge.py & ui
+        if ([fm fileExistsAtPath:srcScript]) {
+            [fm removeItemAtPath:targetScript error:nil];
+            [fm copyItemAtPath:srcScript toPath:targetScript error:nil];
+            NSDictionary *perms = @{NSFilePosixPermissions: @0755};
+            [fm setAttributes:perms ofItemAtPath:targetScript error:nil];
+        }
+        if ([fm fileExistsAtPath:srcUI]) {
+            [fm removeItemAtPath:targetUI error:nil];
+            [fm copyItemAtPath:srcUI toPath:targetUI error:nil];
+        }
+        
+        // 3. Register launchd background service
+        NSTask *task = [[NSTask alloc] init];
+        task.launchPath = @"/bin/bash";
+        task.arguments = @[@"-c", [NSString stringWithFormat:@"python3 '%@' --install-service", targetScript]];
+        [task launch];
+        [task waitUntilExit];
+        
+        // 4. Open UI Dashboard
+        [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"http://127.0.0.1:49231"]];
+    }
+    return 0;
+}
+EOF
+
+echo " • Compiling native FlowBridge launcher executable..."
+clang -O3 -framework Cocoa -o "$APP_PATH/Contents/MacOS/FlowBridge" "$DIST_DIR/launcher.m"
+rm -f "$DIST_DIR/launcher.m"
+
+# 2. Bundle python sync engine, UI dashboard, and custom icon
 RESOURCES_DIR="$APP_PATH/Contents/Resources"
-mkdir -p "$RESOURCES_DIR"
 cp "$REPO_ROOT/flow_bridge.py" "$RESOURCES_DIR/flow_bridge.py"
 cp -R "$REPO_ROOT/ui" "$RESOURCES_DIR/ui"
 chmod +x "$RESOURCES_DIR/flow_bridge.py"
 
-# Apply custom app icon (.icns)
 if [[ -f "$ICON_PATH" ]]; then
-    echo " • Applying FlowBridge.icns custom app icon..."
-    cp "$ICON_PATH" "$RESOURCES_DIR/applet.icns"
+    echo " • Installing custom FlowBridge.icns..."
     cp "$ICON_PATH" "$RESOURCES_DIR/FlowBridge.icns"
 fi
 
-# Update Info.plist:
-# LSUIElement = 1 makes it an invisible background agent (NO Dock icon clutter!)
-PLIST_PATH="$APP_PATH/Contents/Info.plist"
-/usr/libexec/PlistBuddy -c "Set :CFBundleName FlowBridge" "$PLIST_PATH" 2>/dev/null || true
-/usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Flow Bridge" "$PLIST_PATH" 2>/dev/null || true
-/usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.flowbridge.app" "$PLIST_PATH" 2>/dev/null || true
-/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.0.0" "$PLIST_PATH" 2>/dev/null || true
-/usr/libexec/PlistBuddy -c "Set :CFBundleIconFile FlowBridge.icns" "$PLIST_PATH" 2>/dev/null || \
-/usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string FlowBridge.icns" "$PLIST_PATH" 2>/dev/null || true
-/usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" "$PLIST_PATH" 2>/dev/null || \
-/usr/libexec/PlistBuddy -c "Set :LSUIElement true" "$PLIST_PATH" 2>/dev/null || true
+# Clean Info.plist with explicit icon and background agent configuration
+cat <<EOF > "$APP_PATH/Contents/Info.plist"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>FlowBridge</string>
+    <key>CFBundleDisplayName</key>
+    <string>Flow Bridge</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.flowbridge.app</string>
+    <key>CFBundleVersion</key>
+    <string>1.0.3</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.3</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleExecutable</key>
+    <string>FlowBridge</string>
+    <key>CFBundleIconFile</key>
+    <string>FlowBridge</string>
+    <key>LSUIElement</key>
+    <true/>
+</dict>
+</plist>
+EOF
 
 # Strip metadata detritus and apply clean ad-hoc code signature
-echo " • Signing FlowBridge.app bundle..."
+echo " • Signing native FlowBridge.app bundle..."
 xattr -cr "$APP_PATH" 2>/dev/null || true
 codesign --force --deep --sign - "$APP_PATH" 2>/dev/null || true
 
