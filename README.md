@@ -1,112 +1,135 @@
 <div align="center">
-  <img src="assets/logo.png" width="120" alt="Flow Bridge Logo" />
+  <img src="assets/logo.png" width="128" alt="Flow Bridge Logo" />
   <h1>Flow Bridge</h1>
-  <p><strong>Universal Dictation Copy for Mac</strong><br/>
+  <p><strong>Universal macOS Dictation Clipboard Daemon & Menu Bar Hub</strong><br/>
   <em>Speak into Wispr Flow, Handy, or Detta — then press <code>⌘ + V</code> anywhere to paste.</em></p>
+
+  <p>
+    <a href="https://github.com/sandeepisconscious-create/flow-bridge/releases/download/v1.0.6/FlowBridge-Installer.dmg">
+      <img src="https://img.shields.io/badge/Download-macOS%20DMG%20(v1.0.6)-007AFF?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS DMG" />
+    </a>
+  </p>
 </div>
 
 ---
 
-## What is Flow Bridge? (In Plain English)
+## 💡 What is Flow Bridge? (In Plain English)
 
-Have you ever used a voice dictation app on your Mac (like **Wispr Flow**, **Handy**, or **Detta**) to talk into **Google AI Studio, ChatGPT, Claude, Cursor, Slack, or Terminal**, only for your words to **vanish** or fail to paste?
+Have you ever used a voice dictation app on your Mac (**Wispr Flow**, **Handy**, or **Detta**) to talk into **Google AI Studio, ChatGPT, Claude, Cursor, VS Code, Slack, or Terminal**, only for your spoken words to **vanish** or fail to paste?
 
-**Flow Bridge fixes this.** 
+**Flow Bridge solves this permanently at the operating system level.**
 
-Whenever you finish speaking into any of your dictation apps:
-1. Flow Bridge catches your spoken words instantly.
-2. It quietly copies them straight to your Mac clipboard.
+Whenever you finish dictating:
+1. Flow Bridge catches your spoken words directly from your app's local database in real time.
+2. It immediately copies your transcribed text to the macOS clipboard (`NSPasteboard`).
 3. You press **`⌘ + V`** (Command + V) anywhere you want, and your text appears every single time.
 
-No browser extensions. No setup headaches. It just works in the background.
+No browser extensions. No focus-loss bugs. It sits silently in your macOS top menu bar, ready whenever you need it.
 
 ---
 
-## 🔍 Common Problems Flow Bridge Solves (Search & FAQs)
+## ⚡ Problems & Pain Points Flow Bridge Solves
 
-If you arrived here searching for any of these issues, Flow Bridge is the direct fix:
+If you arrived here searching for fixes to any of these issues, Flow Bridge is the direct solution:
 
-- **Wispr Flow not pasting into Google AI Studio, ChatGPT, or Claude**: Web apps with complex virtual DOMs often drop focus when dictation ends, causing synthetic paste events to be swallowed or ignored.
-- **Handy dictation transcript not appearing**: Dictation tools frequently restore previous clipboard contents after attempting their paste. Flow Bridge catches the transcript directly from the local database and holds it on your Mac's clipboard.
-- **Wispr Flow / Detta doesn't paste into Cursor, VS Code, or Terminal**: Electron and terminal emulators often ignore simulated `⌘ + V` keystrokes from background helper windows.
-- **Lost transcribed voice text on blur**: When you click outside the dictation window, your speech is captured in the database but never typed into the input field. Flow Bridge ensures your speech is always waiting on `⌘ + V`.
-- **Dictation text overwriting earlier clipboard content without pasting**: Flow Bridge monitors SQLite transaction logs in real time so your transcript is immediately available on `NSPasteboard`.
+- ❌ **Wispr Flow / Handy not pasting into ChatGPT, Claude, or Google AI Studio**: Complex reactive web editors (ProseMirror, Draft.js, Angular, React virtual DOM) often drop input focus when a dictation floating popup closes, causing synthetic paste events to be swallowed or ignored.
+- ❌ **Cursor, VS Code, and Terminal ignoring voice paste**: Desktop Electron apps and terminal windows often reject synthetic accessibility paste events triggered by background apps. Flow Bridge bypasses synthetic typing completely by writing straight to the OS clipboard.
+- ❌ **Lost voice text on blur**: If you speak and accidentally click away, your dictation saves to the local database but is never inserted into the active window. Flow Bridge ensures your speech is always waiting on `⌘ + V`.
+- ❌ **Overwritten clipboard race conditions**: Dictation apps frequently attempt to restore previous clipboard contents after simulating a paste. Flow Bridge employs an anti-race settle-and-hold loop so your transcribed text cannot be prematurely wiped out.
+- ❌ **Multi-app confusion**: If you switch between Wispr Flow, Handy, and Detta, Flow Bridge monitors all three concurrently and automatically synchronizes whichever engine you spoke into last.
 
 ---
 
-## 3-Step Quick Start
+## ✨ Features & Benefits
 
-1. **Speak** into Wispr Flow, Handy, or Detta.
-2. Click where you want your text (ChatGPT, Claude, Terminal, etc.).
-3. Press **`⌘ + V`**. Your speech pastes immediately.
+### 1. Universal `⌘ + V` Dictation Sync
+Speak into any supported dictation app. When you're ready, simply click anywhere and press `⌘ + V`. It works reliably in every browser, text editor, terminal, and desktop app.
+
+### 2. Native macOS Menu Bar App & Popover HUD
+- A sleek blue microphone icon lives in your top macOS menu bar (next to your clock and Wi-Fi).
+- Click the icon anytime to drop down an instant popover HUD showing your detected engines and recent transcripts.
+- Minimizing or closing the window seamlessly tucks Flow Bridge into the menu bar without cluttering your Dock.
+
+### 3. Detected Voice Engines Grid
+Flow Bridge automatically detects and connects to installed voice dictation apps on your Mac:
+- 🎙️ **Wispr Flow** (`flow.sqlite`)
+- ✋ **Handy** (`com.pais.handy/history.db`)
+- ⚡ **Detta** (`history.db`)
+
+### 4. 10 Recent Dictations with 1-Click Copy
+Accidentally overwrite your clipboard? Flow Bridge keeps your last 10 dictations in a clean, dark-mode list. Click the copy icon next to any previous transcript to re-copy it to your clipboard with instant visual feedback.
+
+### 5. Standalone Desktop Window (No Browser Tab Needed)
+Double-clicking Flow Bridge opens a clean native macOS desktop window powered by built-in WebKit (`WKWebView`). No need to navigate to localhost tabs in Chrome or Safari.
+
+### 6. 100% Private & Offline
+Flow Bridge runs entirely on your local machine. It connects only to local SQLite databases on your Mac's filesystem (`127.0.0.1`). No audio, no text, and no telemetry are ever transmitted to any external server.
 
 ---
 
 ## 🚀 How to Install
 
-Choose whichever is easier for you:
+Choose whichever method you prefer:
 
-### Method 1: Double-Click Installer (Easiest)
-1. Download **[FlowBridge-Installer.dmg (Latest v1.0.6)](https://github.com/sandeepisconscious-create/flow-bridge/releases/download/v1.0.6/FlowBridge-Installer.dmg)** (or check [Releases](https://github.com/sandeepisconscious-create/flow-bridge/releases)).
+### Method 1: Mac Drag-and-Drop Installer (Recommended)
+1. Download **[FlowBridge-Installer.dmg (Latest v1.0.6)](https://github.com/sandeepisconscious-create/flow-bridge/releases/download/v1.0.6/FlowBridge-Installer.dmg)**.
 2. Open the downloaded DMG and drag **FlowBridge** into your **Applications** folder.
 3. **To open for the first time**:
    - Right-click (or Control-click) **`FlowBridge.app`** in Applications and select **Open** → then click **Open**.
    - *(Or double-click the `Open FlowBridge.command` helper right inside the DMG).*
-   
-   A native window opens directly on your desktop, and a blue microphone icon appears in your top macOS menu bar! When closed or minimized, it lives silently in your menu bar—just click the icon to drop down your dictations anytime.
+4. A native window will open, and a blue microphone icon will appear in your top menu bar.
 
 ---
 
 ### Method 2: One-Line Terminal Command
-Open **Terminal** on your Mac, copy-paste this line, and press Enter:
+Open **Terminal** on your Mac, paste this line, and press Enter:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/sandeepisconscious-create/flow-bridge/main/install.sh | bash
 ```
 
-To remove Flow Bridge anytime:
+> **What this does:** Automatically installs Flow Bridge to `~/.flow-bridge/` and configures a lightweight macOS `launchd` background service so it starts silently whenever your Mac boots.
+
+*To uninstall anytime:*
 ```bash
 curl -fsSL https://raw.githubusercontent.com/sandeepisconscious-create/flow-bridge/main/scripts/uninstall.sh | bash
 ```
 
 ---
 
-## 🖥️ See Your Recent Dictations
+## 📋 3-Step Quick Start
 
-Flow Bridge includes a clean, dark-mode dashboard right in your browser.
-
-While Flow Bridge is running, open this link:
-👉 **[http://127.0.0.1:49231](http://127.0.0.1:49231)**
-
-Here you can:
-- See which voice apps on your Mac are connected.
-- View your **10 most recent dictations**.
-- Click the copy button next to any past dictation to re-copy it with 1 click.
+1. **Speak** into Wispr Flow, Handy, or Detta.
+2. **Click** where you want your text (ChatGPT, Claude, Cursor, Terminal, etc.).
+3. **Press `⌘ + V`**. Your speech pastes immediately.
 
 ---
 
-## 🎙️ Which Apps Does Flow Bridge Support?
+## 📁 Supported Voice Engines
 
-| Voice App | What Flow Bridge Does | Status |
+| Engine | Database Location | Status |
 |---|---|---|
-| **Wispr Flow** | Grabs speech from its local history database | ✅ Supported |
-| **Handy** | Grabs speech from its local history database | ✅ Supported |
-| **Detta** | Grabs speech from its local history database | ✅ Supported |
+| **Wispr Flow** | `~/Library/Application Support/Wispr Flow/flow.sqlite` | ✅ Auto-detected |
+| **Handy** | `~/Library/Application Support/com.pais.handy/history.db` | ✅ Auto-detected |
+| **Detta** | `~/Library/Application Support/Detta/history.db` | ✅ Auto-detected |
 
-If you use multiple apps, Flow Bridge always picks whichever app you spoke into last!
+*Have another SQLite or file-based dictation tool? Additional watchers can be added via the extensible `BaseDictationWatcher` interface in `flow_bridge.py`.*
 
 ---
 
-## ❓ Frequently Asked Questions
+## ❓ Frequently Asked Questions (FAQ)
 
-#### Does it take up space in my Dock?
-No. Flow Bridge runs silently in the background as a lightweight helper without cluttering your Dock.
+#### Does Flow Bridge take up space in my Dock?
+No. Flow Bridge runs as a background accessory app (`LSUIElement`). It stays in your top menu bar and does not clutter your Dock.
 
-#### Does it send my voice or text to any external server?
-**No. Never.** Flow Bridge runs 100% locally on your Mac. Nothing ever leaves your computer.
+#### Does it send my voice or text anywhere?
+**No. Never.** Flow Bridge runs 100% locally on your computer. Nothing ever leaves your Mac.
 
-#### Why does normal auto-paste fail in ChatGPT and Claude?
-Complex websites often drop focus or ignore simulated keystrokes while voice popups are closing. Flow Bridge bypasses website tricks completely by putting your text straight into your Mac's native clipboard so **`⌘ + V`** works without fail.
+#### Can I re-copy something I dictated 10 minutes ago?
+Yes. Click the blue microphone icon in your top menu bar or open the window. Your 10 most recent dictations are listed there with 1-click copy buttons.
+
+#### Why does normal auto-paste fail in web AI apps?
+Complex websites often drop cursor focus or ignore simulated accessibility keystrokes while voice popups blur and close. Flow Bridge bypasses web synthetic event trees completely by ensuring your transcribed words are already on the native macOS clipboard.
 
 ---
 
