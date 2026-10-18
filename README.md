@@ -5,14 +5,13 @@
   <em>Speak into Wispr Flow, Handy, or Detta — then press <code>⌘ + V</code> anywhere to paste.</em></p>
 
   <p>
-    <a href="https://github.com/sandeepisconscious-create/flow-bridge/releases/download/v1.0.6/FlowBridge-Installer.dmg">
-      <img src="https://img.shields.io/badge/Download-macOS%20DMG%20(v1.0.6)-007AFF?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS DMG" />
+    <a href="https://github.com/sandeepisconscious-create/flow-bridge/releases/download/v1.0.7/FlowBridge-Installer.dmg">
+      <img src="https://img.shields.io/badge/Download-macOS%20DMG%20(v1.0.7)-007AFF?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS DMG" />
     </a>
   </p>
 </div>
 
 ---
-
 ## 💡 What is Flow Bridge?
 
 Have you ever used a voice dictation app on your Mac (**Wispr Flow**, **Handy**, or **Detta**) to talk into **Google AI Studio, ChatGPT, Claude, Cursor, VS Code, Slack, or Terminal**, only for your spoken words to **vanish** or fail to paste?
@@ -72,7 +71,7 @@ Flow Bridge runs entirely on your local machine. It connects only to local SQLit
 Choose whichever method you prefer:
 
 ### Method 1: Mac Drag-and-Drop Installer (Recommended)
-1. Download **[FlowBridge-Installer.dmg (Latest v1.0.6)](https://github.com/sandeepisconscious-create/flow-bridge/releases/download/v1.0.6/FlowBridge-Installer.dmg)**.
+1. Download **[FlowBridge-Installer.dmg (Latest v1.0.7)](https://github.com/sandeepisconscious-create/flow-bridge/releases/download/v1.0.7/FlowBridge-Installer.dmg)**.
 2. Open the downloaded DMG and drag **FlowBridge** into your **Applications** folder.
 3. **To open for the first time**:
    - Right-click (or Control-click) **`FlowBridge.app`** in Applications and select **Open** → then click **Open**.
