@@ -344,12 +344,18 @@ class FlowBridgeDaemon:
                         self.end_headers()
                         self.wfile.write(content)
                         return
-                elif self.path == "/assets/logo.png" or self.path == "/logo.png":
-                    if os.path.exists(logo_path):
-                        with open(logo_path, "rb") as f:
+                elif self.path in ("/assets/logo.png", "/logo.png", "/favicon.ico", "/favicon.png", "/apple-touch-icon.png"):
+                    target_file = logo_path
+                    if self.path in ("/favicon.ico", "/favicon.png"):
+                        fav = os.path.join(ui_dir, "favicon.png")
+                        if os.path.exists(fav):
+                            target_file = fav
+                    if os.path.exists(target_file):
+                        with open(target_file, "rb") as f:
                             content = f.read()
                         self.send_response(200)
                         self.send_header("Content-Type", "image/png")
+                        self.send_header("Cache-Control", "no-cache")
                         self.end_headers()
                         self.wfile.write(content)
                         return

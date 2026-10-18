@@ -1,32 +1,24 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Flow Bridge</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="apple-touch-icon" href="/favicon.png">
   <style>
-    /* shadcn/ui zinc dark palette */
     :root {
-      --background: #09090b;
-      --foreground: #fafafa;
-      --card: #121215;
-      --card-foreground: #fafafa;
-      --popover: #09090b;
-      --popover-foreground: #fafafa;
-      --primary: #fafafa;
-      --primary-foreground: #18181b;
-      --secondary: #27272a;
-      --secondary-foreground: #fafafa;
-      --muted: #1e1e24;
-      --muted-foreground: #a1a1aa;
-      --accent: #27272a;
-      --accent-foreground: #fafafa;
-      --destructive: #7f1d1d;
-      --destructive-foreground: #fafafa;
-      --border: #27272a;
-      --input: #27272a;
-      --ring: #d4d4d8;
-      --radius: 0.5rem;
+      --bg: #09090b;
+      --card: #111113;
+      --border: #202023;
+      --border-hover: #323238;
+      --text: #ededed;
+      --text-muted: #80808a;
+      --text-dim: #52525b;
+      --green: #22c55e;
+      --green-dim: rgba(34, 197, 94, 0.12);
+      --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, sans-serif;
+      --font-mono: "SF Mono", Menlo, Monaco, Consolas, monospace;
     }
 
     * {
@@ -37,14 +29,15 @@
     }
 
     body {
-      background-color: var(--background);
-      color: var(--foreground);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
       font-size: 13px;
       line-height: 1.5;
-      padding: 20px;
+      padding: 24px;
+      max-width: 680px;
+      margin: 0 auto;
       user-select: none;
-      overflow-x: hidden;
     }
 
     /* Header */
@@ -52,8 +45,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 20px;
-      padding-bottom: 16px;
+      padding-bottom: 20px;
+      margin-bottom: 24px;
       border-bottom: 1px solid var(--border);
     }
 
@@ -63,229 +56,235 @@
       gap: 12px;
     }
 
-    .mascot-avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
-      object-fit: cover;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
     }
 
-    .title-group h1 {
-      font-size: 16px;
+    .brand-title {
+      font-size: 14px;
       font-weight: 600;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.01em;
+      color: var(--text);
     }
 
-    .title-group p {
+    .brand-subtitle {
       font-size: 12px;
-      color: var(--muted-foreground);
+      color: var(--text-muted);
     }
 
-    .status-badge {
+    .status-pill {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 4px 10px;
-      border-radius: 9999px;
+      padding: 3px 9px;
+      border-radius: 999px;
       font-size: 11px;
       font-weight: 500;
-      background: rgba(16, 185, 129, 0.12);
-      color: #34d399;
-      border: 1px solid rgba(52, 211, 153, 0.25);
+      background: var(--green-dim);
+      color: var(--green);
+      border: 1px solid rgba(34, 197, 94, 0.25);
     }
 
     .status-dot {
-      width: 6px;
-      height: 6px;
+      width: 5px;
+      height: 5px;
       border-radius: 50%;
-      background-color: #34d399;
-      box-shadow: 0 0 8px #34d399;
-      animation: pulse 2s infinite ease-in-out;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+      animation: pulse 2.5s infinite ease-in-out;
     }
 
     @keyframes pulse {
       0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.9); }
+      50% { opacity: 0.35; transform: scale(0.9); }
     }
 
-    /* Section Headings */
+    /* Section Bar */
+    .section-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
     .section-title {
       font-size: 11px;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--muted-foreground);
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      letter-spacing: 0.06em;
+      color: var(--text-dim);
     }
 
-    /* Detected Apps Grid */
-    .apps-grid {
+    .section-hint {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .kbd {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 1px 4px;
+      border-radius: 3px;
+      background: #18181b;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    /* Apps Row */
+    .apps-row {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
-      margin-bottom: 24px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 28px;
     }
 
-    .app-card {
+    .app-pill {
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 12px;
+      border-radius: 8px;
+      padding: 9px 12px;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 9px;
       transition: border-color 0.15s ease;
     }
 
-    .app-card:hover {
-      border-color: #3f3f46;
+    .app-pill:hover {
+      border-color: var(--border-hover);
     }
 
-    .app-icon-wrap {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      background: var(--secondary);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
+    .app-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
       flex-shrink: 0;
     }
 
-    .app-info {
-      flex: 1;
+    .app-dot.inactive {
+      background: var(--text-dim);
+    }
+
+    .app-meta {
       min-width: 0;
+      flex: 1;
     }
 
     .app-name {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 500;
+      color: var(--text);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    .app-status {
-      font-size: 11px;
-      display: flex;
-      align-items: center;
-      gap: 4px;
+    .app-status-text {
+      font-size: 10px;
+      color: var(--text-muted);
     }
 
-    .app-status.active { color: #34d399; }
-    .app-status.missing { color: var(--muted-foreground); }
-
-    /* Dictations History List */
-    .history-container {
+    /* History Feed */
+    .feed {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
     }
 
-    .history-card {
+    .feed-item {
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 12px 14px;
+      border-radius: 8px;
+      padding: 10px 14px;
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
       gap: 12px;
-      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: border-color 0.15s ease, background-color 0.15s ease;
     }
 
-    .history-card:hover {
-      background: #18181b;
-      border-color: #3f3f46;
+    .feed-item:hover {
+      border-color: var(--border-hover);
+      background: #141417;
     }
 
-    .history-main {
+    .feed-body {
       flex: 1;
       min-width: 0;
     }
 
-    .history-meta {
+    .feed-top {
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
 
-    .meta-badge {
+    .source-tag {
       font-size: 10px;
-      font-weight: 600;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: var(--secondary);
-      color: var(--secondary-foreground);
+      font-weight: 500;
+      color: #a1a1aa;
     }
 
-    .meta-badge.wispr {
-      background: rgba(56, 189, 248, 0.15);
-      color: #38bdf8;
-      border: 1px solid rgba(56, 189, 248, 0.3);
+    .feed-time {
+      font-size: 10px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
     }
 
-    .meta-badge.detta {
-      background: rgba(168, 85, 247, 0.15);
-      color: #c084fc;
-      border: 1px solid rgba(168, 85, 247, 0.3);
-    }
-
-    .meta-badge.handy {
-      background: rgba(244, 114, 182, 0.15);
-      color: #f472b6;
-      border: 1px solid rgba(244, 114, 182, 0.35);
-    }
-
-    .meta-time {
-      font-size: 11px;
-      color: var(--muted-foreground);
-    }
-
-    .history-text {
+    .feed-text {
       font-size: 13px;
-      color: #e4e4e7;
+      color: #dedee0;
       line-height: 1.45;
       word-break: break-word;
       user-select: text;
     }
 
-    /* Copy Button (shadcn outline button) */
-    .copy-btn {
+    /* Copy Button */
+    .copy-button {
       background: transparent;
       border: 1px solid var(--border);
-      color: var(--muted-foreground);
       border-radius: 6px;
-      width: 32px;
-      height: 32px;
-      display: flex;
+      color: var(--text-dim);
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
       flex-shrink: 0;
       transition: all 0.15s ease;
+      margin-top: 1px;
     }
 
-    .copy-btn:hover {
-      background: var(--secondary);
-      color: var(--foreground);
-      border-color: #52525b;
+    .copy-button:hover {
+      color: var(--text);
+      border-color: var(--border-hover);
+      background: #1c1c20;
     }
 
-    .copy-btn:active {
-      transform: scale(0.94);
+    .copy-button:active {
+      transform: scale(0.92);
     }
 
-    .copy-btn.copied {
-      color: #34d399;
-      border-color: rgba(52, 211, 153, 0.4);
-      background: rgba(52, 211, 153, 0.1);
+    .copy-button.copied {
+      color: var(--green);
+      border-color: rgba(34, 197, 94, 0.4);
+      background: var(--green-dim);
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 36px 20px;
+      color: var(--text-dim);
+      font-size: 12px;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
     }
 
     /* Footer */
@@ -297,67 +296,56 @@
       align-items: center;
       justify-content: space-between;
       font-size: 11px;
-      color: var(--muted-foreground);
-    }
-
-    .kbd {
-      font-family: ui-monospace, Menlo, Monaco, Consolas, monospace;
-      font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: var(--secondary);
-      border: 1px solid var(--border);
-      color: var(--foreground);
+      color: var(--text-dim);
     }
   </style>
 </head>
 <body>
 
-  <!-- Top Header -->
-  <div class="header">
+  <!-- Minimal Header -->
+  <header class="header">
     <div class="brand">
-      <img src="../assets/logo.png" alt="Logo" class="mascot-avatar" id="mascot-img">
-      <div class="title-group">
-        <h1>Flow Bridge</h1>
-        <p>Universal Dictation Clipboard Hub</p>
+      <img src="/logo.png" alt="Logo" class="brand-icon">
+      <div>
+        <div class="brand-title">Flow Bridge</div>
+        <div class="brand-subtitle">Universal Dictation Clipboard Daemon</div>
       </div>
     </div>
-    <div class="status-badge">
+    <div class="status-pill">
       <span class="status-dot"></span>
-      <span id="global-status">Live Sync Active</span>
+      <span>Live</span>
     </div>
+  </header>
+
+  <!-- Detected Engines -->
+  <div class="section-bar">
+    <span class="section-title">Detected Dictation Engines</span>
+    <span id="active-count-label" class="section-hint">Scanning...</span>
   </div>
 
-  <!-- Detected Dictation Engines -->
-  <div class="section-title">
-    <span>Detected Voice Dictation Apps</span>
-    <span id="detected-count-pill" style="font-size: 10px; color: #34d399;">Scanning...</span>
-  </div>
-
-  <div class="apps-grid" id="apps-container">
+  <div class="apps-row" id="apps-container">
     <!-- Populated by JS -->
   </div>
 
-  <!-- Recent Dictation History -->
-  <div class="section-title">
-    <span>Latest 10 Dictations</span>
-    <span style="font-size: 11px; font-weight: normal; text-transform: none; color: var(--muted-foreground);">Press <kbd class="kbd">⌘V</kbd> anywhere</span>
+  <!-- Recent Dictation Feed -->
+  <div class="section-bar">
+    <span class="section-title">Latest Dictations</span>
+    <span class="section-hint">Press <kbd class="kbd">⌘V</kbd> anywhere to paste</span>
   </div>
 
-  <div class="history-container" id="history-container">
+  <div class="feed" id="history-container">
     <!-- Populated by JS -->
   </div>
 
-  <!-- Footer -->
-  <div class="footer">
-    <span>Running silently in background</span>
+  <!-- Minimal Footer -->
+  <footer class="footer">
+    <span>Background clipboard sync</span>
     <span>Auto-settle & hold active</span>
-  </div>
+  </footer>
 
   <script>
-    // Copy icon SVG & Checkmark SVG
-    const copyIconSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
-    const checkIconSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+    const copySvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
+    const checkSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 
     async function fetchState() {
       try {
@@ -366,43 +354,27 @@
         const data = await res.json();
         renderApps(data.apps);
         renderHistory(data.history);
-      } catch (err) {
-        // Fetch error during reload
+      } catch (e) {
+        // network or server restart
       }
-    }
-
-    function getBadgeClass(source) {
-      const s = (source || '').toLowerCase();
-      if (s.includes('wispr')) return 'wispr';
-      if (s.includes('detta')) return 'detta';
-      if (s.includes('handy')) return 'handy';
-      return '';
-    }
-
-    function getAppIcon(name) {
-      const n = (name || '').toLowerCase();
-      if (n.includes('wispr')) return '🎙️';
-      if (n.includes('handy')) return '✋';
-      if (n.includes('detta')) return '⚡';
-      return '🎤';
     }
 
     function renderApps(apps) {
       const container = document.getElementById('apps-container');
-      const countPill = document.getElementById('detected-count-pill');
+      const countLabel = document.getElementById('active-count-label');
       if (!apps || !container) return;
 
       const activeCount = apps.filter(a => a.available).length;
-      countPill.textContent = `${activeCount} of ${apps.length} Active`;
+      if (countLabel) {
+        countLabel.textContent = `${activeCount} of ${apps.length} active`;
+      }
 
       container.innerHTML = apps.map(app => `
-        <div class="app-card">
-          <div class="app-icon-wrap">${getAppIcon(app.name)}</div>
-          <div class="app-info">
-            <div class="app-name">${app.name}</div>
-            <div class="app-status ${app.available ? 'active' : 'missing'}">
-              ${app.available ? '● Connected & Monitored' : '○ Not Detected'}
-            </div>
+        <div class="app-pill">
+          <span class="app-dot ${app.available ? '' : 'inactive'}"></span>
+          <div class="app-meta">
+            <div class="app-name">${escapeHtml(app.name)}</div>
+            <div class="app-status-text">${app.available ? 'Connected' : 'Not installed'}</div>
           </div>
         </div>
       `).join('');
@@ -413,40 +385,39 @@
       if (!items || !container) return;
 
       if (items.length === 0) {
-        container.innerHTML = `<div style="text-align:center; padding: 28px; color: var(--muted-foreground);">No dictations recorded yet. Speak into Wispr Flow, Handy, or Detta to test!</div>`;
+        container.innerHTML = `<div class="empty-state">No dictations recorded yet. Speak into Wispr Flow, Handy, or Detta.</div>`;
         return;
       }
 
       container.innerHTML = items.map((item, idx) => `
-        <div class="history-card">
-          <div class="history-main">
-            <div class="history-meta">
-              <span class="meta-badge ${getBadgeClass(item.source)}">${item.source}</span>
-              <span class="meta-time">${item.time}</span>
+        <div class="feed-item">
+          <div class="feed-body">
+            <div class="feed-top">
+              <span class="source-tag">${escapeHtml(item.source)}</span>
+              <span class="feed-time">${item.time}</span>
             </div>
-            <div class="history-text">${escapeHtml(item.text)}</div>
+            <div class="feed-text">${escapeHtml(item.text)}</div>
           </div>
-          <button class="copy-btn" title="Copy transcript to clipboard" onclick="copyText(${idx}, this)">
-            ${copyIconSvg}
+          <button class="copy-button" title="Copy transcript to clipboard" onclick="copyText(${idx}, this)">
+            ${copySvg}
           </button>
         </div>
       `).join('');
 
-      // Store in memory for instant copy
-      window._historyItems = items;
+      window._items = items;
     }
 
     function copyText(idx, btn) {
-      const item = window._historyItems?.[idx];
+      const item = window._items?.[idx];
       if (!item) return;
 
       navigator.clipboard.writeText(item.text).then(() => {
         btn.classList.add('copied');
-        btn.innerHTML = checkIconSvg;
+        btn.innerHTML = checkSvg;
         setTimeout(() => {
           btn.classList.remove('copied');
-          btn.innerHTML = copyIconSvg;
-        }, 1800);
+          btn.innerHTML = copySvg;
+        }, 1500);
       });
     }
 
@@ -456,7 +427,6 @@
       return div.innerHTML;
     }
 
-    // Initial fetch and 1.5s refresh poll
     fetchState();
     setInterval(fetchState, 1500);
   </script>
