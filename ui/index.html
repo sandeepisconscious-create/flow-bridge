@@ -76,33 +76,6 @@
       color: var(--text-muted);
     }
 
-    .status-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 3px 9px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 500;
-      background: var(--green-dim);
-      color: var(--green);
-      border: 1px solid rgba(34, 197, 94, 0.25);
-    }
-
-    .status-dot {
-      width: 5px;
-      height: 5px;
-      border-radius: 50%;
-      background: var(--green);
-      box-shadow: 0 0 6px var(--green);
-      animation: pulse 2.5s infinite ease-in-out;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.35; transform: scale(0.9); }
-    }
-
     /* Section Bar */
     .section-bar {
       display: flex;
@@ -217,31 +190,36 @@
       min-width: 0;
     }
 
-    .feed-top {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 4px;
-    }
-
-    .source-tag {
-      font-size: 10px;
-      font-weight: 500;
-      color: #a1a1aa;
-    }
-
-    .feed-time {
-      font-size: 10px;
-      color: var(--text-dim);
-      font-family: var(--font-mono);
-    }
-
     .feed-text {
       font-size: 13px;
       color: #dedee0;
       line-height: 1.45;
       word-break: break-word;
       user-select: text;
+      margin-bottom: 5px;
+    }
+
+    .feed-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .source-tag {
+      font-size: 11px;
+      font-weight: 500;
+      color: #a1a1aa;
+    }
+
+    .meta-separator {
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+
+    .feed-time {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
     }
 
     /* Copy Button */
@@ -308,12 +286,8 @@
       <img src="/logo.png" alt="Logo" class="brand-icon">
       <div>
         <div class="brand-title">Flow Bridge</div>
-        <div class="brand-subtitle">Universal Dictation Clipboard Daemon</div>
+        <div class="brand-subtitle">Universal Dictation Copy</div>
       </div>
-    </div>
-    <div class="status-pill">
-      <span class="status-dot"></span>
-      <span>Live</span>
     </div>
   </header>
 
@@ -330,7 +304,7 @@
   <!-- Recent Dictation Feed -->
   <div class="section-bar">
     <span class="section-title">Latest Dictations</span>
-    <span class="section-hint">Press <kbd class="kbd">⌘V</kbd> anywhere to paste</span>
+    <span class="section-hint">Press <kbd class="kbd">Command + V</kbd> anywhere to paste</span>
   </div>
 
   <div class="feed" id="history-container">
@@ -392,11 +366,12 @@
       container.innerHTML = items.map((item, idx) => `
         <div class="feed-item">
           <div class="feed-body">
-            <div class="feed-top">
+            <div class="feed-text">${escapeHtml(item.text)}</div>
+            <div class="feed-meta">
               <span class="source-tag">${escapeHtml(item.source)}</span>
+              <span class="meta-separator">•</span>
               <span class="feed-time">${item.time}</span>
             </div>
-            <div class="feed-text">${escapeHtml(item.text)}</div>
           </div>
           <button class="copy-button" title="Copy transcript to clipboard" onclick="copyText(${idx}, this)">
             ${copySvg}
