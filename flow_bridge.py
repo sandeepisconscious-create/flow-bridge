@@ -41,6 +41,7 @@ class DictationRecord:
 class DaemonConfig:
     wispr_db: str = os.path.expanduser("~/Library/Application Support/Wispr Flow/flow.sqlite")
     detta_db: str = os.path.expanduser("~/Library/Application Support/Detta/history.db")
+    handy_db: str = os.path.expanduser("~/Library/Application Support/com.pais.handy/history.db")
     poll_interval_sec: float = 0.25
     settle_delay_sec: float = 0.35
     reassert_attempts: int = 3
@@ -218,6 +219,52 @@ class DettaWatcher(BaseDictationWatcher):
         return records
 
 
+class HandyWatcher(BaseDictationWatcher):
+    """Watches Handy's SQLite transcription database (com.pais.handy)."""
+
+    def __init__(self, db_path: str):
+        super().__init__(db_path, "Handy")
+
+    def get_latest(self) -> Optional[DictationRecord]:
+        history = self.get_history(limit=1)
+        return history[0] if history else None
+
+    def get_history(self, limit: int = 10) -> List[DictationRecord]:
+        if not self.is_available():
+            return []
+        records: List[DictationRecord] = []
+        try:
+            with sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True, timeout=1.0) as conn:
+                cursor = conn.cursor()
+                cursor.execute(f"""
+                    SELECT id, timestamp, transcription_text, post_processed_text 
+                    FROM transcription_history 
+                    WHERE (transcription_text IS NOT NULL AND length(trim(transcription_text)) > 0)
+                       OR (post_processed_text IS NOT NULL AND length(trim(post_processed_text)) > 0)
+                    ORDER BY id DESC LIMIT {limit};
+                """)
+                rows = cursor.fetchall()
+                for row in rows:
+                    entry_id, raw_ts, trans_text, post_text = row
+                    text = post_text.strip() if post_text and post_text.strip() else (trans_text.strip() if trans_text else "")
+                    if not text:
+                        continue
+
+                    # Handy timestamp is standard epoch (seconds or ms)
+                    ts_val = float(raw_ts)
+                    unix_ts = ts_val / 1000.0 if ts_val > 1e11 else ts_val
+
+                    records.append(DictationRecord(
+                        source_name=self.source_name,
+                        unique_id=f"handy_{entry_id}",
+                        timestamp=unix_ts,
+                        text=text
+                    ))
+        except Exception:
+            pass
+        return records
+
+
 class FlowBridgeDaemon:
     """Core daemon managing multi-app dictation polling and settle-and-hold clipboard sync."""
 
@@ -226,6 +273,7 @@ class FlowBridgeDaemon:
         self.watchers: List[BaseDictationWatcher] = [
             WisprFlowWatcher(config.wispr_db),
             DettaWatcher(config.detta_db),
+            HandyWatcher(config.handy_db),
         ]
         self._running = True
 

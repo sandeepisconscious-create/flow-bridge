@@ -237,6 +237,12 @@
       border: 1px solid rgba(168, 85, 247, 0.3);
     }
 
+    .meta-badge.handy {
+      background: rgba(244, 114, 182, 0.15);
+      color: #f472b6;
+      border: 1px solid rgba(244, 114, 182, 0.35);
+    }
+
     .meta-time {
       font-size: 11px;
       color: var(--muted-foreground);
@@ -365,6 +371,22 @@
       }
     }
 
+    function getBadgeClass(source) {
+      const s = (source || '').toLowerCase();
+      if (s.includes('wispr')) return 'wispr';
+      if (s.includes('detta')) return 'detta';
+      if (s.includes('handy')) return 'handy';
+      return '';
+    }
+
+    function getAppIcon(name) {
+      const n = (name || '').toLowerCase();
+      if (n.includes('wispr')) return '🎙️';
+      if (n.includes('handy')) return '✋';
+      if (n.includes('detta')) return '⚡';
+      return '🎤';
+    }
+
     function renderApps(apps) {
       const container = document.getElementById('apps-container');
       const countPill = document.getElementById('detected-count-pill');
@@ -375,7 +397,7 @@
 
       container.innerHTML = apps.map(app => `
         <div class="app-card">
-          <div class="app-icon-wrap">${app.name.includes('Wispr') ? '🎙️' : '⚡'}</div>
+          <div class="app-icon-wrap">${getAppIcon(app.name)}</div>
           <div class="app-info">
             <div class="app-name">${app.name}</div>
             <div class="app-status ${app.available ? 'active' : 'missing'}">
@@ -391,7 +413,7 @@
       if (!items || !container) return;
 
       if (items.length === 0) {
-        container.innerHTML = `<div style="text-align:center; padding: 28px; color: var(--muted-foreground);">No dictations recorded yet. Speak into Wispr Flow or Detta to test!</div>`;
+        container.innerHTML = `<div style="text-align:center; padding: 28px; color: var(--muted-foreground);">No dictations recorded yet. Speak into Wispr Flow, Handy, or Detta to test!</div>`;
         return;
       }
 
@@ -399,7 +421,7 @@
         <div class="history-card">
           <div class="history-main">
             <div class="history-meta">
-              <span class="meta-badge ${item.source.toLowerCase().includes('wispr') ? 'wispr' : 'detta'}">${item.source}</span>
+              <span class="meta-badge ${getBadgeClass(item.source)}">${item.source}</span>
               <span class="meta-time">${item.time}</span>
             </div>
             <div class="history-text">${escapeHtml(item.text)}</div>
