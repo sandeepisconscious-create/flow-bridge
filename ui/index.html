@@ -615,9 +615,6 @@
         if (now > mediaToggleLockUntil) {
           updateMediaButton(data.auto_pause_media);
         }
-        if (now > dockHideToggleLockUntil) {
-          updateDockHideButton(data.hide_apps_to_menu_bar);
-        }
         renderApps(data.apps);
         rawHistoryItems = data.history || [];
         renderFilteredHistory();
@@ -666,25 +663,6 @@
       }
     }
 
-    function updateDockHideButton(enabled) {
-      hideAppsToMenuBar = !!enabled;
-      const sw = document.getElementById('dock-hide-switch');
-      const text = document.getElementById('dock-hide-status-text');
-      if (sw && text) {
-        if (hideAppsToMenuBar) {
-          sw.classList.add('on');
-          text.classList.add('active');
-          text.textContent = 'Enabled (Menu Bar)';
-          text.style.color = '';
-        } else {
-          sw.classList.remove('on');
-          text.classList.remove('active');
-          text.textContent = 'Disabled (Keep in Dock)';
-          text.style.color = '';
-        }
-      }
-    }
-
     async function togglePause() {
       if (isTogglingPause) return;
       isTogglingPause = true;
@@ -700,7 +678,6 @@
           const data = await res.json();
           updatePauseButton(data.paused);
         } else {
-          // Revert on error
           updatePauseButton(!targetState);
         }
       } catch (e) {
@@ -726,7 +703,6 @@
           const data = await res.json();
           updateMediaButton(data.auto_pause_media);
         } else {
-          // Revert on error
           updateMediaButton(!targetState);
         }
       } catch (e) {
@@ -737,31 +713,7 @@
       }
     }
 
-    async function toggleDockHide() {
-      if (isTogglingDockHide) return;
-      isTogglingDockHide = true;
 
-      // 1. Optimistic instant visual flip (0ms response)
-      const targetState = !hideAppsToMenuBar;
-      updateDockHideButton(targetState);
-      dockHideToggleLockUntil = Date.now() + 1500;
-
-      try {
-        const res = await fetch('/api/toggle-dock-hide');
-        if (res.ok) {
-          const data = await res.json();
-          updateDockHideButton(data.hide_apps_to_menu_bar);
-        } else {
-          // Revert on error
-          updateDockHideButton(!targetState);
-        }
-      } catch (e) {
-        updateDockHideButton(!targetState);
-        console.error(e);
-      } finally {
-        isTogglingDockHide = false;
-      }
-    }
 
     function handleUpdateState(info) {
       updateData = info;
