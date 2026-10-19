@@ -72,6 +72,7 @@ def start_ui_server(daemon: FlowBridgeDaemon, port: int = 49231) -> ThreadingHTT
                     "version": daemon.version,
                     "paused": daemon.is_paused(),
                     "auto_pause_media": daemon.config.auto_pause_media,
+                    "hide_apps_to_menu_bar": daemon.config.hide_apps_to_menu_bar,
                     "apps": daemon.get_app_status(),
                     "history": daemon.get_recent_history(limit=25),
                     "update": daemon.check_for_update()
@@ -95,6 +96,15 @@ def start_ui_server(daemon: FlowBridgeDaemon, port: int = 49231) -> ThreadingHTT
             elif self.path == "/api/toggle-media-pause":
                 daemon.config.auto_pause_media = not daemon.config.auto_pause_media
                 body = json.dumps({"auto_pause_media": daemon.config.auto_pause_media}).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            elif self.path == "/api/toggle-dock-hide":
+                daemon.config.hide_apps_to_menu_bar = not daemon.config.hide_apps_to_menu_bar
+                body = json.dumps({"hide_apps_to_menu_bar": daemon.config.hide_apps_to_menu_bar}).encode("utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json; charset=utf-8")
                 self.send_header("Access-Control-Allow-Origin", "*")

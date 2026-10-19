@@ -526,6 +526,17 @@
       </div>
       <div class="ios-switch mute-on" id="media-switch"></div>
     </div>
+
+    <div class="control-divider"></div>
+
+    <!-- Hide Dictation Apps to Menu Bar / Notification Area Toggle -->
+    <div class="control-item" onclick="toggleDockHide()" title="Tuck Wispr Flow and dictation windows into menu bar when minimized instead of cluttering Dock">
+      <div class="control-label-group">
+        <span class="control-label">Hide Dictation Apps from Dock</span>
+        <span class="control-status-text" id="dock-hide-status-text">Enabled (Menu Bar)</span>
+      </div>
+      <div class="ios-switch on" id="dock-hide-switch"></div>
+    </div>
   </div>
 
   <!-- Auto-Update Notification Banner -->
@@ -581,12 +592,15 @@
     let lastAppsHash = '';
     let isPaused = false;
     let autoPauseMedia = true;
+    let hideAppsToMenuBar = true;
     let updateData = null;
 
     let pauseToggleLockUntil = 0;
     let mediaToggleLockUntil = 0;
+    let dockHideToggleLockUntil = 0;
     let isTogglingPause = false;
     let isTogglingMedia = false;
+    let isTogglingDockHide = false;
 
     async function fetchState() {
       try {
@@ -604,6 +618,9 @@
         }
         if (now > mediaToggleLockUntil) {
           updateMediaButton(data.auto_pause_media);
+        }
+        if (now > dockHideToggleLockUntil) {
+          updateDockHideButton(data.hide_apps_to_menu_bar);
         }
         renderApps(data.apps);
         rawHistoryItems = data.history || [];
@@ -648,6 +665,25 @@
           sw.classList.remove('mute-on');
           text.classList.remove('active');
           text.textContent = 'Disabled';
+          text.style.color = '';
+        }
+      }
+    }
+
+    function updateDockHideButton(enabled) {
+      hideAppsToMenuBar = !!enabled;
+      const sw = document.getElementById('dock-hide-switch');
+      const text = document.getElementById('dock-hide-status-text');
+      if (sw && text) {
+        if (hideAppsToMenuBar) {
+          sw.classList.add('on');
+          text.classList.add('active');
+          text.textContent = 'Enabled (Menu Bar)';
+          text.style.color = '';
+        } else {
+          sw.classList.remove('on');
+          text.classList.remove('active');
+          text.textContent = 'Disabled (Keep in Dock)';
           text.style.color = '';
         }
       }
@@ -702,6 +738,32 @@
         console.error(e);
       } finally {
         isTogglingMedia = false;
+      }
+    }
+
+    async function toggleDockHide() {
+      if (isTogglingDockHide) return;
+      isTogglingDockHide = true;
+
+      // 1. Optimistic instant visual flip (0ms response)
+      const targetState = !hideAppsToMenuBar;
+      updateDockHideButton(targetState);
+      dockHideToggleLockUntil = Date.now() + 1500;
+
+      try {
+        const res = await fetch('/api/toggle-dock-hide');
+        if (res.ok) {
+          const data = await res.json();
+          updateDockHideButton(data.hide_apps_to_menu_bar);
+        } else {
+          // Revert on error
+          updateDockHideButton(!targetState);
+        }
+      } catch (e) {
+        updateDockHideButton(!targetState);
+        console.error(e);
+      } finally {
+        isTogglingDockHide = false;
       }
     }
 

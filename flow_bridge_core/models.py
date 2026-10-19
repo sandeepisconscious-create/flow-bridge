@@ -33,5 +33,6 @@ class DaemonConfig:
     reassert_attempts: int = 3
     reassert_interval_sec: float = 0.15
     auto_pause_media: bool = True
+    hide_apps_to_menu_bar: bool = True
     show_notifications: bool = False
     verbose: bool = False
