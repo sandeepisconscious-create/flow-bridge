@@ -58,19 +58,28 @@ Transcribed utterances are injected into the macOS `NSPasteboard` directly via i
 ### 5. Real-Time Search & Dictation History
 Filter through your recent transcribed utterances instantly with the client-side search bar. Quickly find a prompt or code snippet you dictated earlier.
 
-### 6. Pause / Resume Sync Toggle
-Need to dictate a quick note without overriding your active clipboard? Click the **Active / Paused** toggle button right in the header to pause clipboard sync at any time.
+### 6. Zero-Latency Hardware Audio Muting (Push-to-Talk)
+While holding your dictation shortcut (<kbd>Fn</kbd>, <kbd>Option</kbd>, or <kbd>Ctrl</kbd>), Flow Bridge instantly silences master speaker output at the macOS `CoreAudio` hardware driver level (0 ms latency). This eliminates microphone feedback from background videos or music without sending media play/pause commands, ensuring paused YouTube tabs never auto-play and Apple Music never launches.
 
-### 7. Seamless Automatic In-Place Updates
+### 7. Right-Click Menu Bar Controls
+Right-click or Control-click the menu bar icon anytime to access a native macOS context menu:
+- **Open Dashboard Window**
+- **Toggle Sync (Pause / Resume)**
+- **Quit Flow Bridge**
+
+### 8. Pause / Resume Sync Toggle
+Need to dictate a quick note without overriding your active clipboard? Click the **Active / Paused** toggle button right in the dashboard to pause clipboard sync at any time.
+
+### 9. Seamless Automatic In-Place Updates
 Whenever a new release or fix is uploaded to GitHub, Flow Bridge notifies you with an update banner. Click **Install Update** and Flow Bridge will automatically download, install, and refresh in the background.
 
-### 8. 1-Click Copy with Visual Feedback
+### 10. 1-Click Copy with Visual Feedback
 Accidentally overwrite your clipboard? Flow Bridge keeps your recent dictations in a clean, dark-mode list. Click the copy icon next to any previous transcript to re-copy it to your clipboard with instant visual feedback.
 
-### 9. Standalone Desktop Window (No Browser Tab Needed)
-Double-clicking Flow Bridge opens a clean native macOS desktop window powered by built-in WebKit (`WKWebView`). No need to navigate to localhost tabs in Chrome or Safari.
+### 11. Standalone Desktop Window & Energy Optimization
+Double-clicking Flow Bridge opens a clean native macOS desktop window powered by built-in WebKit (`WKWebView`). When closed or hidden, polling completely suspends so your Mac stays cool at 0.0% CPU.
 
-### 10. 100% Private & Offline
+### 12. 100% Private & Offline
 Flow Bridge runs entirely on your local machine. It connects only to local SQLite databases on your Mac's filesystem (`127.0.0.1`). No audio, no text, and no telemetry are ever transmitted to any external server.
 
 ---
