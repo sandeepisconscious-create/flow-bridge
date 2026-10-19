@@ -373,34 +373,55 @@
       user-select: text;
     }
 
-    /* Trailing Action Icons (Play, Copy, Flag, More) */
+    /* Trailing Action: Copy Button + App Pill Badge (Hover Only) */
     .feed-actions {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       flex-shrink: 0;
       align-self: center;
-      opacity: 0.85;
+      opacity: 0;
+      pointer-events: none;
       transition: opacity 0.15s ease;
+    }
+
+    .feed-item:hover .feed-actions {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .app-badge-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: #27272a;
+      border: 1px solid #3f3f46;
+      font-size: 11px;
+      font-weight: 500;
+      color: #d4d4d8;
+      letter-spacing: -0.01em;
+      user-select: none;
     }
 
     .action-icon-btn {
       background: transparent;
-      border: none;
+      border: 1px solid transparent;
       color: #a1a1aa;
-      width: 28px;
-      height: 28px;
+      width: 30px;
+      height: 30px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
       border-radius: 6px;
-      transition: color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+      transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
     }
 
     .action-icon-btn:hover {
       color: #ffffff;
       background: #27272a;
+      border-color: #3f3f46;
     }
 
     .action-icon-btn:active {
@@ -409,10 +430,8 @@
 
     .action-icon-btn.copied {
       color: #22c55e;
-    }
-
-    .action-icon-btn.flagged {
-      color: #f59e0b;
+      background: rgba(34, 197, 94, 0.12);
+      border-color: rgba(34, 197, 94, 0.35);
     }
 
     /* Empty state */
@@ -562,33 +581,22 @@
   </footer>
 
   <script>
-    const playSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>`;
-    const pauseSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
     const copySvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="13" height="13" x="9" y="9" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
     const checkSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
-    const flagSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>`;
-    const moreSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>`;
 
     let rawHistoryItems = [];
     let currentSearchTerm = '';
     let isSearchOpen = false;
-    let hoveredIndex = 1; // Default highlight second row like in screenshot (or none)
-    let flaggedItems = new Set();
-    let playingIndex = null;
-    let synth = window.speechSynthesis;
     let lastRenderHash = '';
     let lastAppsHash = '';
     let isPaused = false;
     let autoPauseMedia = true;
-    let hideAppsToMenuBar = true;
     let updateData = null;
 
     let pauseToggleLockUntil = 0;
     let mediaToggleLockUntil = 0;
-    let dockHideToggleLockUntil = 0;
     let isTogglingPause = false;
     let isTogglingMedia = false;
-    let isTogglingDockHide = false;
 
     async function fetchState() {
       try {
@@ -865,7 +873,7 @@
       }
 
       // Content hash check to avoid hover flicker during polling
-      const hash = currentSearchTerm + '::' + JSON.stringify(filtered.map(i => i.id + i.text)) + '::' + hoveredIndex + '::' + Array.from(flaggedItems).join(',') + '::' + playingIndex;
+      const hash = currentSearchTerm + '::' + JSON.stringify(filtered.map(i => i.id + i.text));
       if (!force && hash === lastRenderHash) return;
       lastRenderHash = hash;
 
@@ -881,98 +889,22 @@
         return;
       }
 
-      container.innerHTML = filtered.map((item, idx) => {
-        const isHovered = (idx === hoveredIndex);
-        const isFlagged = flaggedItems.has(item.id || idx);
-        const isPlaying = (playingIndex === idx);
-
-        return `
-          <div class="feed-item" onmouseenter="setHovered(${idx})" onmouseleave="clearHovered(${idx})">
-            <div class="feed-time-col">${escapeHtml(item.time || '')}</div>
-            <div class="feed-content-col">
-              <div class="feed-text">${escapeHtml(item.text)}</div>
-            </div>
-            <div class="feed-actions" style="visibility: ${isHovered ? 'visible' : 'hidden'};">
-              <button class="action-icon-btn ${isPlaying ? 'copied' : ''}" title="${isPlaying ? 'Stop playback' : 'Play voice preview'}" onclick="togglePlayVoice(${idx}, this)">
-                ${isPlaying ? pauseSvg : playSvg}
-              </button>
-              <button class="action-icon-btn" title="Copy to clipboard" onclick="copyText(${idx}, this)">
-                ${copySvg}
-              </button>
-              <button class="action-icon-btn ${isFlagged ? 'flagged' : ''}" title="${isFlagged ? 'Unpin/Unflag' : 'Pin/Flag dictation'}" onclick="toggleFlag(${idx})">
-                ${flagSvg}
-              </button>
-              <button class="action-icon-btn" title="More options" onclick="showMoreMenu(${idx}, this)">
-                ${moreSvg}
-              </button>
-            </div>
+      container.innerHTML = filtered.map((item, idx) => `
+        <div class="feed-item">
+          <div class="feed-time-col">${escapeHtml(item.time || '')}</div>
+          <div class="feed-content-col">
+            <div class="feed-text">${escapeHtml(item.text)}</div>
           </div>
-        `;
-      }).join('');
+          <div class="feed-actions">
+            <span class="app-badge-pill">${escapeHtml(item.source || 'Voice')}</span>
+            <button class="action-icon-btn" title="Copy to clipboard" onclick="copyText(${idx}, this)">
+              ${copySvg}
+            </button>
+          </div>
+        </div>
+      `).join('');
 
       window._currentFiltered = filtered;
-    }
-
-    function setHovered(idx) {
-      hoveredIndex = idx;
-      renderFilteredHistory(true);
-    }
-
-    function clearHovered(idx) {
-      if (hoveredIndex === idx) {
-        hoveredIndex = null;
-        renderFilteredHistory(true);
-      }
-    }
-
-    function toggleFlag(idx) {
-      const item = window._currentFiltered?.[idx];
-      if (!item) return;
-      const key = item.id || idx;
-      if (flaggedItems.has(key)) {
-        flaggedItems.delete(key);
-      } else {
-        flaggedItems.add(key);
-      }
-      renderFilteredHistory(true);
-    }
-
-    function togglePlayVoice(idx, btn) {
-      const item = window._currentFiltered?.[idx];
-      if (!item || !synth) return;
-
-      if (playingIndex === idx) {
-        synth.cancel();
-        playingIndex = null;
-        renderFilteredHistory(true);
-        return;
-      }
-
-      synth.cancel();
-      playingIndex = idx;
-      renderFilteredHistory(true);
-
-      const utterance = new SpeechSynthesisUtterance(item.text);
-      utterance.rate = 1.05;
-      utterance.onend = () => {
-        if (playingIndex === idx) {
-          playingIndex = null;
-          renderFilteredHistory(true);
-        }
-      };
-      utterance.onerror = () => {
-        playingIndex = null;
-        renderFilteredHistory(true);
-      };
-      synth.speak(utterance);
-    }
-
-    function showMoreMenu(idx, btn) {
-      const item = window._currentFiltered?.[idx];
-      if (!item) return;
-      // Native fast action: quick copy with quote or trigger paste
-      const options = `Dictated via: ${item.source || 'Voice Engine'}\nTimestamp: ${item.time}\n\nPress ⌘+V anywhere to paste this text.`;
-      alert(options);
     }
 
     function copyText(idx, btn) {
