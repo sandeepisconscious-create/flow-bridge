@@ -68,19 +68,10 @@ class MediaController:
 
     @classmethod
     def pause(cls) -> bool:
-        """Immediately pauses media playback via macOS MediaRemote and mutes hardware output for instant silence."""
+        """Immediately mutes the macOS hardware audio output (sub-millisecond instant silence)."""
         cls._init()
 
-        # 1. Send system-wide Media Remote Pause command (kMRPause = 1)
-        if cls._mr:
-            try:
-                res = cls._mr.MRMediaRemoteSendCommand(1, None)
-                if res:
-                    cls._paused_media_by_us = True
-            except Exception:
-                pass
-
-        # 2. Hardware-level output mute as zero-latency backstop
+        # Hardware-level master output mute: silences speakers without touching individual media players
         dev_id = cls._get_default_output_device()
         if cls._ca and dev_id and cls._addr_mute:
             try:
@@ -100,10 +91,10 @@ class MediaController:
 
     @classmethod
     def resume(cls) -> bool:
-        """Restores hardware audio output volume and resumes media playback if paused by us."""
+        """Restores hardware audio output volume cleanly without sending any media player resume signals."""
         cls._init()
 
-        # 1. Unmute hardware audio
+        # Unmute hardware audio output if we muted it
         if cls._ca and cls._is_muted_by_us and cls._addr_mute:
             try:
                 target_devs = set()
@@ -117,14 +108,6 @@ class MediaController:
                 for dev_id in target_devs:
                     cls._ca.AudioObjectSetPropertyData(dev_id, ctypes.byref(cls._addr_mute), 0, None, ctypes.sizeof(unmute_val), ctypes.byref(unmute_val))
                 cls._is_muted_by_us = False
-            except Exception:
-                pass
-
-        # 2. Resume media playback via macOS MediaRemote (kMRPlay = 0)
-        if cls._mr and cls._paused_media_by_us:
-            try:
-                cls._mr.MRMediaRemoteSendCommand(0, None)
-                cls._paused_media_by_us = False
             except Exception:
                 pass
 
