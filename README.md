@@ -79,10 +79,7 @@ Accidentally overwrite your clipboard? Flow Bridge keeps your recent dictations 
 ### 11. Standalone Desktop Window & Energy Optimization
 Double-clicking Flow Bridge opens a clean native macOS desktop window powered by built-in WebKit (`WKWebView`). When closed or hidden, polling completely suspends so your Mac stays cool at 0.0% CPU.
 
-### 12. Hide Dictation Apps from Dock (Menu Bar Tucking)
-Tired of Wispr Flow or other dictation apps showing up as minimized thumbnails cluttering your Dock next to the Trash? Flow Bridge includes an intelligent window tucking daemon. When enabled, minimizing Wispr Flow, Handy, or Detta clears its dock thumbnail and cleanly tucks it into your menu bar status area, keeping your Dock pristine while voice dictation continues seamlessly in the background.
-
-### 13. 100% Private & Offline
+### 12. 100% Private & Offline
 Flow Bridge runs entirely on your local machine. It connects only to local SQLite databases on your Mac's filesystem (`127.0.0.1`). No audio, no text, and no telemetry are ever transmitted to any external server.
 
 ---

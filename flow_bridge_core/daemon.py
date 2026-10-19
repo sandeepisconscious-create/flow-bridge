@@ -107,36 +107,8 @@ class FlowBridgeDaemon:
         t = threading.Thread(target=ptt_loop, daemon=True)
         t.start()
 
-        # Dock tucking thread: cleanly hides minimized dictation windows into menu bar
-        def dock_cleanup_loop():
-            target_apps = ["Wispr Flow", "handy", "Detta"]
-            applescript_cmd = '''
-tell application "System Events"
-    repeat with appName in {"Wispr Flow", "handy", "Detta"}
-        if exists (process appName) then
-            tell process appName
-                set minWindows to (windows whose value of attribute "AXMinimized" is true)
-                if (count of minWindows) > 0 then
-                    repeat with w in minWindows
-                        set value of attribute "AXMinimized" of w to false
-                    end repeat
-                    set visible to false
-                end if
-            end tell
-        end if
-    end repeat
-end tell
-'''
-            while self._running:
-                if self.config.hide_apps_to_menu_bar:
-                    try:
-                        subprocess.run(["osascript", "-e", applescript_cmd], capture_output=True, timeout=1.0)
-                    except Exception:
-                        pass
-                time.sleep(1.5)
-
-        t_dock = threading.Thread(target=dock_cleanup_loop, daemon=True)
-        t_dock.start()
+        # Dock tucking thread: deactivated to preserve third-party Electron status item window hierarchies
+        pass
 
     def _resume_media_safely(self) -> None:
         if self._auto_paused_media:
