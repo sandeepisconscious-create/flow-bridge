@@ -80,12 +80,14 @@ Flow Bridge runs entirely on your local machine. It connects only to local SQLit
 Choose whichever method you prefer:
 
 ### Method 1: Mac Drag-and-Drop Installer (Recommended)
-1. Download **[FlowBridge-Installer.dmg (Latest v1.0.9)](https://github.com/sandeepisconscious-create/flow-bridge/releases/download/v1.0.9/FlowBridge-Installer.dmg)**.
+1. Download **[FlowBridge-Installer.dmg (v1.1.2)](https://github.com/sandeepisconscious-create/flow-bridge/releases/download/v1.1.2/FlowBridge-Installer.dmg)**.
 2. Open the downloaded DMG and drag **FlowBridge** into your **Applications** folder.
-3. **To open for the first time**:
-   - Right-click (or Control-click) **`FlowBridge.app`** in Applications and select **Open** → then click **Open**.
-   - *(Or double-click the `Open FlowBridge.command` helper right inside the DMG).*
-4. A native window will open, and a blue microphone icon will appear in your top menu bar.
+3. **First-Time Launch (macOS Gatekeeper)**:
+   - If macOS displays *"Apple could not verify FlowBridge..."*, click **Done**.
+   - Open **System Settings** → **Privacy & Security** → scroll to **Security**.
+   - Click **Open Anyway** next to *"FlowBridge was blocked..."*, then confirm **Open**.
+   - *(You only need to do this once. Flow Bridge will launch instantly forever after).*
+4. A clean native window will open, and the blue microphone icon will appear in your top menu bar.
 
 ---
 
