@@ -30,8 +30,34 @@ from flow_bridge_core.watchers.engines import BaseDictationWatcher, DettaWatcher
 def generate_launchd_plist() -> str:
     """Generates a macOS launchd user agent plist for running Flow Bridge on login."""
     script_path = os.path.abspath(__file__)
-    python_path = sys.executable
+    dir_path = os.path.dirname(script_path)
+    launcher_path = os.path.join(dir_path, "FlowBridge")
     home = os.path.expanduser("~")
+
+    # If launcher binary doesn't exist, compile it via clang so macOS shows "FlowBridge" in Login Items
+    if not os.path.exists(launcher_path):
+        c_src = f"""#include <unistd.h>
+#include <stdlib.h>
+int main(int argc, char *argv[]) {{
+    char *args[] = {{"{sys.executable}", "{script_path}", NULL}};
+    execv("{sys.executable}", args);
+    return 1;
+}}
+"""
+        c_file = os.path.join(dir_path, "_launcher.c")
+        try:
+            with open(c_file, "w") as f:
+                f.write(c_src)
+            subprocess.run(["clang", "-O2", c_file, "-o", launcher_path], check=True, capture_output=True)
+            subprocess.run(["codesign", "-s", "-", "--force", "--identifier", "com.flowbridge.launcher", launcher_path], capture_output=True)
+            os.remove(c_file)
+        except Exception:
+            pass
+
+    if os.path.exists(launcher_path):
+        exec_args = f"<string>{launcher_path}</string>"
+    else:
+        exec_args = f"<string>{sys.executable}</string>\n        <string>{script_path}</string>"
 
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -41,8 +67,7 @@ def generate_launchd_plist() -> str:
     <string>com.flowbridge.clipboard.sync</string>
     <key>ProgramArguments</key>
     <array>
-        <string>{python_path}</string>
-        <string>{script_path}</string>
+        {exec_args}
     </array>
     <key>RunAtLoad</key>
     <true/>
@@ -53,7 +78,7 @@ def generate_launchd_plist() -> str:
     <key>StandardErrorPath</key>
     <string>{home}/Library/Logs/flow_bridge_error.log</string>
     <key>WorkingDirectory</key>
-    <string>{os.path.dirname(script_path)}</string>
+    <string>{dir_path}</string>
 </dict>
 </plist>
 """
