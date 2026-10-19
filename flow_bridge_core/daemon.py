@@ -79,41 +79,30 @@ class FlowBridgeDaemon:
         return False
 
     def _start_ptt_listener(self) -> None:
-        """Monitors push-to-talk shortcut key hold state.
-        If the app natively handles muting, yields to the native app.
-        For apps without built-in muting (e.g. Detta), applies Flow Bridge's custom hardware mute.
+        """Monitors push-to-talk shortcut key hold state across dictation apps.
+        Instantly mutes macOS hardware audio output for the duration of speech with minimal CPU wakeups.
         """
         def ptt_loop():
             was_held = False
-            custom_muted = False
 
             while self._running:
                 if self.config.auto_pause_media and not self.is_paused():
                     held_app = ShortcutWatcher.which_app_shortcut_held()
                     if held_app and not was_held:
                         was_held = True
-                        if self._app_has_native_mute(held_app):
-                            custom_muted = False
-                            if self.config.verbose:
-                                print(f"[Flow Bridge] 🎙️ {held_app} shortcut held -> Using native app mute.")
-                        else:
-                            custom_muted = True
-                            self._auto_paused_media = True
-                            MediaController.pause()
-                            if self.config.verbose:
-                                print(f"[Flow Bridge] 🎙️ {held_app} lacks native mute -> Flow Bridge muted audio.")
+                        self._auto_paused_media = True
+                        MediaController.pause()
+                        if self.config.verbose:
+                            print(f"[Flow Bridge] 🎙️ {held_app} shortcut held -> Muted audio.")
                     elif not held_app and was_held:
                         was_held = False
-                        if custom_muted:
-                            custom_muted = False
-                            self._resume_media_safely()
+                        self._resume_media_safely()
                 else:
                     if was_held:
                         was_held = False
-                        if custom_muted:
-                            custom_muted = False
-                            self._resume_media_safely()
-                time.sleep(0.015)
+                        self._resume_media_safely()
+                # 80ms sleep (~12 Hz) is completely responsive while reducing CPU wakeups by 82%
+                time.sleep(0.08)
 
         t = threading.Thread(target=ptt_loop, daemon=True)
         t.start()
@@ -123,7 +112,7 @@ class FlowBridgeDaemon:
             MediaController.resume()
             self._auto_paused_media = False
             if self.config.verbose:
-                print("[Flow Bridge] ▶️ Shortcut released / dictation ended -> Resumed audio.")
+                print("[Flow Bridge] ▶️ Shortcut released / dictation ended -> Unmuted audio.")
 
     def set_paused(self, paused: bool) -> bool:
         self._paused = paused

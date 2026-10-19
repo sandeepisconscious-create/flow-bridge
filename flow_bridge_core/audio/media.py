@@ -20,13 +20,15 @@ class AudioObjectPropertyAddress(ctypes.Structure):
 
 
 class MediaController:
-    """Manages system-wide audio output muting directly via macOS CoreAudio."""
+    """Manages system-wide media playback and audio output muting directly via macOS CoreAudio & MediaRemote."""
 
     _ca = None
+    _mr = None
     _out_dev: Optional[int] = None
     _addr_mute: Optional[AudioObjectPropertyAddress] = None
     _was_already_muted: bool = False
     _is_muted_by_us: bool = False
+    _paused_media_by_us: bool = False
 
     @classmethod
     def _fourcc(cls, s: str) -> int:
@@ -43,6 +45,14 @@ class MediaController:
             except Exception:
                 cls._ca = False
 
+        if cls._mr is None:
+            try:
+                cls._mr = ctypes.cdll.LoadLibrary("/System/Library/PrivateFrameworks/MediaRemote.framework/MediaRemote")
+                cls._mr.MRMediaRemoteSendCommand.argtypes = [ctypes.c_int32, ctypes.c_void_p]
+                cls._mr.MRMediaRemoteSendCommand.restype = ctypes.c_bool
+            except Exception:
+                cls._mr = False
+
     @classmethod
     def _get_default_output_device(cls) -> Optional[int]:
         if not cls._ca:
@@ -58,9 +68,19 @@ class MediaController:
 
     @classmethod
     def pause(cls) -> bool:
-        """Immediately mutes the macOS hardware audio output (sub-millisecond instant silence)."""
+        """Immediately pauses media playback via macOS MediaRemote and mutes hardware output for instant silence."""
         cls._init()
 
+        # 1. Send system-wide Media Remote Pause command (kMRPause = 1)
+        if cls._mr:
+            try:
+                res = cls._mr.MRMediaRemoteSendCommand(1, None)
+                if res:
+                    cls._paused_media_by_us = True
+            except Exception:
+                pass
+
+        # 2. Hardware-level output mute as zero-latency backstop
         dev_id = cls._get_default_output_device()
         if cls._ca and dev_id and cls._addr_mute:
             try:
@@ -80,9 +100,10 @@ class MediaController:
 
     @classmethod
     def resume(cls) -> bool:
-        """Restores hardware audio output volume cleanly without sending any media player resume signals."""
+        """Restores hardware audio output volume and resumes media playback if paused by us."""
         cls._init()
 
+        # 1. Unmute hardware audio
         if cls._ca and cls._is_muted_by_us and cls._addr_mute:
             try:
                 target_devs = set()
@@ -98,4 +119,13 @@ class MediaController:
                 cls._is_muted_by_us = False
             except Exception:
                 pass
+
+        # 2. Resume media playback via macOS MediaRemote (kMRPlay = 0)
+        if cls._mr and cls._paused_media_by_us:
+            try:
+                cls._mr.MRMediaRemoteSendCommand(0, None)
+                cls._paused_media_by_us = False
+            except Exception:
+                pass
+
         return True

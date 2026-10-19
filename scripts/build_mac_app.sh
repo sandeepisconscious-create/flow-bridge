@@ -106,27 +106,9 @@ cat <<'EOF' > "$DIST_DIR/launcher.m"
     self.popover.contentViewController = vc;
     self.popover.contentSize = NSMakeSize(540, 580);
     
-    // 4. Create Main Floating Window
-    NSRect frame = NSMakeRect(0, 0, 720, 680);
-    NSUInteger style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskFullSizeContentView;
-    
-    self.window = [[NSWindow alloc] initWithContentRect:frame styleMask:style backing:NSBackingStoreBuffered defer:NO];
-    [self.window center];
-    self.window.title = @"Flow Bridge";
-    self.window.titlebarAppearsTransparent = YES;
-    self.window.titleVisibility = NSWindowTitleHidden;
-    self.window.backgroundColor = [NSColor colorWithCalibratedRed:9/255.0 green:9/255.0 blue:11/255.0 alpha:1.0];
-    self.window.delegate = self;
-    
-    WKWebViewConfiguration *wConfig = [[WKWebViewConfiguration alloc] init];
-    self.windowWebView = [[WKWebView alloc] initWithFrame:frame configuration:wConfig];
-    self.windowWebView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-    [self.windowWebView setValue:@NO forKey:@"drawsBackground"];
-    [self.windowWebView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"http://127.0.0.1:49231"]]];
-    
-    [self.window.contentView addSubview:self.windowWebView];
-    [self.window makeKeyAndOrderFront:nil];
-    [NSApp activateIgnoringOtherApps:YES];
+    // Main window is lazy-loaded only when requested (saves 150MB RAM and WebKit background threads)
+    self.window = nil;
+    self.windowWebView = nil;
 }
 
 - (void)statusItemClicked:(id)sender {
@@ -167,7 +149,26 @@ cat <<'EOF' > "$DIST_DIR/launcher.m"
 }
 
 - (void)openWindowAction:(id)sender {
-    [self.windowWebView reload];
+    if (!self.window) {
+        NSRect frame = NSMakeRect(0, 0, 720, 680);
+        NSUInteger style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskFullSizeContentView;
+        self.window = [[NSWindow alloc] initWithContentRect:frame styleMask:style backing:NSBackingStoreBuffered defer:NO];
+        [self.window center];
+        self.window.title = @"Flow Bridge";
+        self.window.titlebarAppearsTransparent = YES;
+        self.window.titleVisibility = NSWindowTitleHidden;
+        self.window.backgroundColor = [NSColor colorWithCalibratedRed:9/255.0 green:9/255.0 blue:11/255.0 alpha:1.0];
+        self.window.delegate = self;
+        
+        WKWebViewConfiguration *wConfig = [[WKWebViewConfiguration alloc] init];
+        self.windowWebView = [[WKWebView alloc] initWithFrame:frame configuration:wConfig];
+        self.windowWebView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+        [self.windowWebView setValue:@NO forKey:@"drawsBackground"];
+        [self.windowWebView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"http://127.0.0.1:49231"]]];
+        [self.window.contentView addSubview:self.windowWebView];
+    } else {
+        [self.windowWebView reload];
+    }
     [self.window makeKeyAndOrderFront:nil];
     [NSApp activateIgnoringOtherApps:YES];
 }

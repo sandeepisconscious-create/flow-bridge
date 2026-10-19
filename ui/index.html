@@ -863,8 +863,35 @@
       `;
     }
 
-    fetchState();
-    setInterval(fetchState, 1500);
+    // Energy-saving adaptive polling: Only poll when the window/popover is visible to user
+    let pollTimer = null;
+
+    function startPolling() {
+      if (pollTimer) return;
+      fetchState();
+      pollTimer = setInterval(() => {
+        if (!document.hidden) {
+          fetchState();
+        }
+      }, 2500);
+    }
+
+    function stopPolling() {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        startPolling();
+      }
+    });
+
+    startPolling();
   </script>
 </body>
 </html>

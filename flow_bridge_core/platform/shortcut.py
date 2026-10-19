@@ -54,29 +54,36 @@ class ShortcutWatcher:
     def which_app_shortcut_held(cls) -> Optional[str]:
         """Returns the name of the app whose shortcut is currently held, or None."""
         cls._init()
-        flags = 0
+        cg = cls._cg
+
+        # Fast path: Check hardware keycodes directly via CoreGraphics (microsecond lookup)
+        if cg:
+            # 1. Wispr Flow: Fn / Globe key (keycode 63)
+            if cg.CGEventSourceKeyState(0, 63) or cg.CGEventSourceKeyState(1, 63):
+                return "Wispr Flow"
+
+            # 2. Handy: Left Ctrl (keycode 59) or Right Ctrl (62)
+            if (cg.CGEventSourceKeyState(0, 59) or cg.CGEventSourceKeyState(1, 59) or
+                cg.CGEventSourceKeyState(0, 62) or cg.CGEventSourceKeyState(1, 62)):
+                return "Handy"
+
+            # 3. Detta / Generic: Option key (keycode 58, 61)
+            if (cg.CGEventSourceKeyState(0, 58) or cg.CGEventSourceKeyState(1, 58) or
+                cg.CGEventSourceKeyState(0, 61) or cg.CGEventSourceKeyState(1, 61)):
+                return "Detta"
+
+        # Secondary fallback: NSEvent modifierFlags if CG didn't register
         if cls._msgSend and cls._NSEvent and cls._flags_sel:
             try:
                 flags = cls._msgSend(cls._NSEvent, cls._flags_sel)
+                if flags & 0x800000:
+                    return "Wispr Flow"
+                if flags & 0x40000:
+                    return "Handy"
+                if flags & 0x80000:
+                    return "Detta"
             except Exception:
-                flags = 0
-
-        cg = cls._cg
-
-        # 1. Wispr Flow: Fn / Globe key (keycode 63, flag 0x800000)
-        fn_held = bool(flags & 0x800000) or (cg and cg.CGEventSourceKeyState(0, 63))
-        if fn_held:
-            return "Wispr Flow"
-
-        # 2. Handy: Left Ctrl (keycode 59, flag 0x40000) or Right Ctrl (62)
-        ctrl_held = bool(flags & 0x40000) or (cg and (cg.CGEventSourceKeyState(0, 59) or cg.CGEventSourceKeyState(0, 62)))
-        if ctrl_held:
-            return "Handy"
-
-        # 3. Detta / Generic fallback: Option key (keycode 58, 61, flag 0x80000)
-        opt_held = bool(flags & 0x80000) or (cg and (cg.CGEventSourceKeyState(0, 58) or cg.CGEventSourceKeyState(0, 61)))
-        if opt_held:
-            return "Detta"
+                pass
 
         return None
 
