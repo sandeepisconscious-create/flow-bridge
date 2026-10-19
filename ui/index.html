@@ -253,186 +253,174 @@
       cursor: not-allowed;
     }
 
-    /* Search & Filter Bar */
-    .search-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 14px;
-    }
-
-    .search-wrapper {
-      position: relative;
-      flex: 1;
-    }
-
-    .search-icon {
-      position: absolute;
-      left: 10px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--text-dim);
-      pointer-events: none;
-    }
-
-    .search-input {
-      width: 100%;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 7px;
-      padding: 6px 10px 6px 32px;
-      font-size: 12px;
-      color: var(--text);
-      outline: none;
-      transition: border-color 0.15s ease;
-      font-family: inherit;
-    }
-
-    .search-input:focus {
-      border-color: #3b82f6;
-    }
-
-    .search-input::placeholder {
-      color: var(--text-dim);
-    }
-
-    /* Section Bar */
-    .section-bar {
+    /* Search & Filter Header Row */
+    .history-header-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 8px;
+      padding: 0 4px;
+      margin-bottom: 12px;
     }
 
-    .section-title {
+    .history-group-title {
       font-size: 11px;
       font-weight: 600;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--text-dim);
+      color: #71717a;
     }
 
-    .section-hint {
-      font-size: 11px;
-      color: var(--text-dim);
+    .search-icon-btn {
+      background: transparent;
+      border: none;
+      color: #71717a;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      border-radius: 4px;
+      transition: color 0.15s ease, background-color 0.15s ease;
     }
 
-    .kbd {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      padding: 1px 4px;
-      border-radius: 3px;
+    .search-icon-btn:hover,
+    .search-icon-btn.active {
+      color: #e4e4e7;
+      background: #27272a;
+    }
+
+    .search-inline-wrap {
+      display: none;
+      align-items: center;
+      gap: 8px;
       background: #18181b;
-      border: 1px solid var(--border);
-      color: var(--text-muted);
+      border: 1px solid #27272a;
+      border-radius: 6px;
+      padding: 4px 10px;
+      margin-bottom: 12px;
+      animation: fadeIn 0.15s ease;
     }
 
-    /* History Feed */
+    .search-inline-wrap.visible {
+      display: flex;
+    }
+
+    .search-inline-input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #f4f4f5;
+      font-size: 12px;
+      width: 100%;
+      font-family: inherit;
+    }
+
+    .search-inline-input::placeholder {
+      color: #52525b;
+    }
+
+    /* History Feed Container */
     .feed {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      background: #18181b;
+      border: 1px solid #27272a;
+      border-radius: 12px;
+      overflow: hidden;
       min-height: 120px;
     }
 
     .feed-item {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 14px;
       display: flex;
       align-items: flex-start;
-      justify-content: space-between;
-      gap: 12px;
-      transition: border-color 0.15s ease, background-color 0.15s ease;
+      gap: 16px;
+      padding: 16px 20px;
+      border-bottom: 1px solid #27272a;
+      background: transparent;
+      transition: background-color 0.15s ease;
+      position: relative;
+    }
+
+    .feed-item:last-child {
+      border-bottom: none;
     }
 
     .feed-item:hover {
-      border-color: var(--border-hover);
-      background: #141417;
+      background: #1f1f23;
     }
 
-    .feed-body {
+    .feed-time-col {
+      width: 62px;
+      flex-shrink: 0;
+      font-size: 12px;
+      color: #71717a;
+      font-variant-numeric: tabular-nums;
+      padding-top: 1px;
+      user-select: none;
+    }
+
+    .feed-content-col {
       flex: 1;
       min-width: 0;
+      padding-right: 8px;
     }
 
     .feed-text {
       font-size: 13px;
-      color: #dedee0;
-      line-height: 1.45;
+      line-height: 1.5;
+      color: #e4e4e7;
       word-break: break-word;
       user-select: text;
-      margin-bottom: 5px;
     }
 
-    .feed-meta-pill {
-      display: inline-flex;
+    /* Trailing Action Icons (Play, Copy, Flag, More) */
+    .feed-actions {
+      display: flex;
       align-items: center;
-      gap: 5px;
-      padding: 2px 7px;
-      border-radius: 999px;
-      background: #17171a;
-      border: 1px solid var(--border);
-      font-size: 10px;
+      gap: 8px;
+      flex-shrink: 0;
+      align-self: center;
+      opacity: 0.85;
+      transition: opacity 0.15s ease;
     }
 
-    .source-tag {
-      font-weight: 500;
-      color: #a1a1aa;
-    }
-
-    .meta-separator {
-      font-size: 9px;
-      color: var(--text-dim);
-    }
-
-    .feed-time {
-      color: var(--text-dim);
-      font-family: var(--font-mono);
-    }
-
-    /* Copy Button */
-    .copy-button {
+    .action-icon-btn {
       background: transparent;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--text-dim);
+      border: none;
+      color: #a1a1aa;
       width: 28px;
       height: 28px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      flex-shrink: 0;
-      transition: all 0.15s ease;
-      margin-top: 1px;
+      border-radius: 6px;
+      transition: color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
     }
 
-    .copy-button:hover {
-      color: var(--text);
-      border-color: var(--border-hover);
-      background: #1c1c20;
+    .action-icon-btn:hover {
+      color: #ffffff;
+      background: #27272a;
     }
 
-    .copy-button:active {
+    .action-icon-btn:active {
       transform: scale(0.92);
     }
 
-    .copy-button.copied {
-      color: var(--green);
-      border-color: rgba(34, 197, 94, 0.4);
-      background: rgba(34, 197, 94, 0.12);
+    .action-icon-btn.copied {
+      color: #22c55e;
+    }
+
+    .action-icon-btn.flagged {
+      color: #f59e0b;
     }
 
     /* Empty state */
     .empty-state {
       text-align: center;
-      padding: 32px 20px;
-      color: var(--text-dim);
+      padding: 36px 20px;
+      color: #71717a;
       font-size: 12px;
-      border: 1px dashed var(--border);
-      border-radius: 8px;
     }
 
     /* Footer */
@@ -550,20 +538,22 @@
     </button>
   </div>
 
-  <!-- Search Filter Input -->
-  <div class="search-row">
-    <div class="search-wrapper">
-      <svg class="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Section Header Row: TODAY + Search Trigger -->
+  <div class="history-header-row">
+    <span class="history-group-title" id="history-group-label">TODAY</span>
+    <button class="search-icon-btn" id="search-toggle-btn" title="Search dictations" onclick="toggleSearchInput()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
       </svg>
-      <input type="text" class="search-input" id="search-input" placeholder="Search dictation history..." oninput="onSearchChange(this.value)">
-    </div>
+    </button>
   </div>
 
-  <!-- Recent Dictation Feed -->
-  <div class="section-bar">
-    <span class="section-title">Latest Dictations</span>
-    <span class="section-hint">Press <kbd class="kbd">⌘ + V</kbd> anywhere to paste</span>
+  <!-- Collapsible Search Input -->
+  <div class="search-inline-wrap" id="search-inline-wrap">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#71717a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+    </svg>
+    <input type="text" class="search-inline-input" id="search-input" placeholder="Search dictation history..." oninput="onSearchChange(this.value)">
   </div>
 
   <div class="feed" id="history-container">
@@ -583,11 +573,20 @@
   </footer>
 
   <script>
-    const copySvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
-    const checkSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+    const playSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>`;
+    const pauseSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
+    const copySvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="13" height="13" x="9" y="9" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+    const checkSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+    const flagSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>`;
+    const moreSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>`;
 
     let rawHistoryItems = [];
     let currentSearchTerm = '';
+    let isSearchOpen = false;
+    let hoveredIndex = 1; // Default highlight second row like in screenshot (or none)
+    let flaggedItems = new Set();
+    let playingIndex = null;
+    let synth = window.speechSynthesis;
     let lastRenderHash = '';
     let lastAppsHash = '';
     let isPaused = false;
@@ -824,6 +823,27 @@
       }
     }
 
+    function toggleSearchInput() {
+      isSearchOpen = !isSearchOpen;
+      const wrap = document.getElementById('search-inline-wrap');
+      const btn = document.getElementById('search-toggle-btn');
+      const input = document.getElementById('search-input');
+      if (wrap && btn) {
+        if (isSearchOpen) {
+          wrap.classList.add('visible');
+          btn.classList.add('active');
+          if (input) input.focus();
+        } else {
+          wrap.classList.remove('visible');
+          btn.classList.remove('active');
+          if (input) {
+            input.value = '';
+            onSearchChange('');
+          }
+        }
+      }
+    }
+
     function onSearchChange(val) {
       currentSearchTerm = (val || '').trim().toLowerCase();
       renderFilteredHistory(true);
@@ -856,7 +876,7 @@
       }
 
       // Content hash check to avoid hover flicker during polling
-      const hash = currentSearchTerm + '::' + JSON.stringify(filtered.map(i => i.id + i.text));
+      const hash = currentSearchTerm + '::' + JSON.stringify(filtered.map(i => i.id + i.text)) + '::' + hoveredIndex + '::' + Array.from(flaggedItems).join(',') + '::' + playingIndex;
       if (!force && hash === lastRenderHash) return;
       lastRenderHash = hash;
 
@@ -872,23 +892,98 @@
         return;
       }
 
-      container.innerHTML = filtered.map((item, idx) => `
-        <div class="feed-item">
-          <div class="feed-body">
-            <div class="feed-text">${escapeHtml(item.text)}</div>
-            <div class="feed-meta-pill">
-              <span class="source-tag">${escapeHtml(item.source)}</span>
-              <span class="meta-separator">•</span>
-              <span class="feed-time">${item.time}</span>
+      container.innerHTML = filtered.map((item, idx) => {
+        const isHovered = (idx === hoveredIndex);
+        const isFlagged = flaggedItems.has(item.id || idx);
+        const isPlaying = (playingIndex === idx);
+
+        return `
+          <div class="feed-item" onmouseenter="setHovered(${idx})" onmouseleave="clearHovered(${idx})">
+            <div class="feed-time-col">${escapeHtml(item.time || '')}</div>
+            <div class="feed-content-col">
+              <div class="feed-text">${escapeHtml(item.text)}</div>
+            </div>
+            <div class="feed-actions" style="visibility: ${isHovered ? 'visible' : 'hidden'};">
+              <button class="action-icon-btn ${isPlaying ? 'copied' : ''}" title="${isPlaying ? 'Stop playback' : 'Play voice preview'}" onclick="togglePlayVoice(${idx}, this)">
+                ${isPlaying ? pauseSvg : playSvg}
+              </button>
+              <button class="action-icon-btn" title="Copy to clipboard" onclick="copyText(${idx}, this)">
+                ${copySvg}
+              </button>
+              <button class="action-icon-btn ${isFlagged ? 'flagged' : ''}" title="${isFlagged ? 'Unpin/Unflag' : 'Pin/Flag dictation'}" onclick="toggleFlag(${idx})">
+                ${flagSvg}
+              </button>
+              <button class="action-icon-btn" title="More options" onclick="showMoreMenu(${idx}, this)">
+                ${moreSvg}
+              </button>
             </div>
           </div>
-          <button class="copy-button" title="Copy transcript to clipboard" onclick="copyText(${idx}, this)">
-            ${copySvg}
-          </button>
-        </div>
-      `).join('');
+        `;
+      }).join('');
 
       window._currentFiltered = filtered;
+    }
+
+    function setHovered(idx) {
+      hoveredIndex = idx;
+      renderFilteredHistory(true);
+    }
+
+    function clearHovered(idx) {
+      if (hoveredIndex === idx) {
+        hoveredIndex = null;
+        renderFilteredHistory(true);
+      }
+    }
+
+    function toggleFlag(idx) {
+      const item = window._currentFiltered?.[idx];
+      if (!item) return;
+      const key = item.id || idx;
+      if (flaggedItems.has(key)) {
+        flaggedItems.delete(key);
+      } else {
+        flaggedItems.add(key);
+      }
+      renderFilteredHistory(true);
+    }
+
+    function togglePlayVoice(idx, btn) {
+      const item = window._currentFiltered?.[idx];
+      if (!item || !synth) return;
+
+      if (playingIndex === idx) {
+        synth.cancel();
+        playingIndex = null;
+        renderFilteredHistory(true);
+        return;
+      }
+
+      synth.cancel();
+      playingIndex = idx;
+      renderFilteredHistory(true);
+
+      const utterance = new SpeechSynthesisUtterance(item.text);
+      utterance.rate = 1.05;
+      utterance.onend = () => {
+        if (playingIndex === idx) {
+          playingIndex = null;
+          renderFilteredHistory(true);
+        }
+      };
+      utterance.onerror = () => {
+        playingIndex = null;
+        renderFilteredHistory(true);
+      };
+      synth.speak(utterance);
+    }
+
+    function showMoreMenu(idx, btn) {
+      const item = window._currentFiltered?.[idx];
+      if (!item) return;
+      // Native fast action: quick copy with quote or trigger paste
+      const options = `Dictated via: ${item.source || 'Voice Engine'}\nTimestamp: ${item.time}\n\nPress ⌘+V anywhere to paste this text.`;
+      alert(options);
     }
 
     function copyText(idx, btn) {

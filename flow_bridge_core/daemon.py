@@ -268,13 +268,21 @@ end tell
         all_records.sort(key=lambda r: r.timestamp, reverse=True)
         top = all_records[:limit]
 
+        def format_time_compact(ts: float) -> str:
+            dt = datetime.fromtimestamp(ts)
+            # e.g. 6:53pm (lowercase, no leading zero on hour)
+            hour = dt.strftime("%I").lstrip("0") or "12"
+            minute = dt.strftime("%M")
+            ampm = dt.strftime("%p").lower()
+            return f"{hour}:{minute}{ampm}"
+
         return [
             {
                 "id": r.unique_id,
                 "source": r.source_name,
                 "text": r.text,
                 "timestamp": r.timestamp,
-                "time": datetime.fromtimestamp(r.timestamp).strftime("%I:%M:%S %p")
+                "time": format_time_compact(r.timestamp)
             }
             for r in top
         ]
