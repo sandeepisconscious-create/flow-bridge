@@ -54,6 +54,32 @@ int main(int argc, char *argv[]) {{
         except Exception:
             pass
 
+    # Attach custom app icon to FlowBridge binary so macOS Settings displays custom icon instead of terminal exec icon
+    icon_src = os.path.join(dir_path, "assets", "FlowBridge.icns")
+    if os.path.exists(launcher_path) and os.path.exists(icon_src):
+        objc_icon_script = f"""#import <Cocoa/Cocoa.h>
+int main(void) {{
+    @autoreleasepool {{
+        NSImage *img = [[NSImage alloc] initWithContentsOfFile:@"{icon_src}"];
+        if (img) {{
+            [[NSWorkspace sharedWorkspace] setIcon:img forFile:@"{launcher_path}" options:0];
+        }}
+    }}
+    return 0;
+}}
+"""
+        icon_c_file = os.path.join(dir_path, "_set_icon.m")
+        icon_bin = os.path.join(dir_path, "_set_icon")
+        try:
+            with open(icon_c_file, "w") as f:
+                f.write(objc_icon_script)
+            subprocess.run(["clang", "-framework", "Cocoa", icon_c_file, "-o", icon_bin], check=True, capture_output=True)
+            subprocess.run([icon_bin], check=True, capture_output=True)
+            os.remove(icon_c_file)
+            os.remove(icon_bin)
+        except Exception:
+            pass
+
     if os.path.exists(launcher_path):
         exec_args = f"<string>{launcher_path}</string>"
     else:
