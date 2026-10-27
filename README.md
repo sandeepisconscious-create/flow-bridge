@@ -55,11 +55,11 @@ Transcribed utterances are injected into the macOS `NSPasteboard` directly via i
 - Click the icon anytime to drop down an instant popover HUD showing your detected engines and recent transcripts.
 - Minimizing or closing the window seamlessly tucks Flow Bridge into the menu bar without cluttering your Dock.
 
-### 5. Real-Time Search & Dictation History
-Filter through your recent transcribed utterances instantly with the client-side search bar. Quickly find a prompt or code snippet you dictated earlier.
+### 5. Clean Dictation Feed & Instant Search
+Browse your transcribed utterances organized under a clean **TODAY** feed layout. Tap the search icon to filter across all previous prompts, ideas, or code snippets in real time.
 
 ### 6. Zero-Latency Hardware Audio Muting (Push-to-Talk)
-While holding your dictation shortcut (<kbd>Fn</kbd>, <kbd>Option</kbd>, or <kbd>Ctrl</kbd>), Flow Bridge instantly silences master speaker output at the macOS `CoreAudio` hardware driver level (0 ms latency). This eliminates microphone feedback from background videos or music without sending media play/pause commands, ensuring paused YouTube tabs never auto-play and Apple Music never launches.
+While holding down your dictation shortcut (<kbd>Fn</kbd> for Wispr Flow), Flow Bridge instantly silences master speaker output directly at the macOS `CoreAudio` hardware driver level (0 ms latency). It reads your active app's configured push-to-talk key and ignores unrelated modifier combinations, completely eliminating false mutes while typing or using normal keyboard shortcuts.
 
 ### 7. Right-Click Menu Bar Controls
 Right-click or Control-click the menu bar icon anytime to access a native macOS context menu:
@@ -73,8 +73,8 @@ Need to dictate a quick note without overriding your active clipboard? Click the
 ### 9. Seamless Automatic In-Place Updates
 Whenever a new release or fix is uploaded to GitHub, Flow Bridge notifies you with an update banner. Click **Install Update** and Flow Bridge will automatically download, install, and refresh in the background.
 
-### 10. 1-Click Copy with Visual Feedback
-Accidentally overwrite your clipboard? Flow Bridge keeps your recent dictations in a clean, dark-mode list. Click the copy icon next to any previous transcript to re-copy it to your clipboard with instant visual feedback.
+### 10. Smooth Hover with 1-Click Copy & App Badges
+Hovering over any transcript smoothly reveals an engine pill badge (e.g. `Wispr Flow`, `Handy`, `Detta`) and a 1-click **Copy Button (`❐`)** with instant visual checkmark feedback (`✓`). Powered by pure CSS for zero flicker or performance overhead.
 
 ### 11. Standalone Desktop Window & Energy Optimization
 Double-clicking Flow Bridge opens a clean native macOS desktop window powered by built-in WebKit (`WKWebView`). When closed or hidden, polling completely suspends so your Mac stays cool at 0.0% CPU.
