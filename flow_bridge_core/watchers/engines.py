@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import subprocess
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
@@ -190,3 +191,48 @@ class HandyWatcher(BaseDictationWatcher):
         except Exception:
             self._conn = None
         return records
+
+
+class GeminiWatcher(BaseDictationWatcher):
+    """
+    Watches Google Gemini macOS app dictations.
+    Since Gemini injects synthesized transcripts directly via macOS pasteboard/UI rather than a local DB,
+    GeminiWatcher captures and buffers recent dictations while Gemini is active.
+    """
+
+    def __init__(self):
+        super().__init__("", "Gemini")
+        self._history: List[DictationRecord] = []
+        self._counter: int = 0
+
+    def is_available(self) -> bool:
+        """Available if Gemini process is running or has records."""
+        try:
+            out = subprocess.run(["pgrep", "-l", "-i", "gemini"], capture_output=True, text=True, timeout=0.3).stdout
+            return bool("gemini" in out.lower() or self._history)
+        except Exception:
+            return bool(self._history)
+
+    def record_dictation(self, text: str) -> Optional[DictationRecord]:
+        """Manually records a finalized text string emitted by Gemini."""
+        clean_text = text.strip() if text else ""
+        if not clean_text:
+            return None
+        self._counter += 1
+        rec = DictationRecord(
+            source_name=self.source_name,
+            unique_id=f"gemini_{int(time.time())}_{self._counter}",
+            timestamp=time.time(),
+            text=clean_text
+        )
+        self._history.insert(0, rec)
+        if len(self._history) > 50:
+            self._history = self._history[:50]
+        return rec
+
+    def get_latest(self) -> Optional[DictationRecord]:
+        return self._history[0] if self._history else None
+
+    def get_history(self, limit: int = 10) -> List[DictationRecord]:
+        return self._history[:limit]
+

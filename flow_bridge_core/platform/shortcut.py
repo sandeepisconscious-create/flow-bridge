@@ -69,13 +69,15 @@ class ShortcutWatcher:
         running = set()
         try:
             # Fast check of running processes
-            out = subprocess.run(["pgrep", "-l", "-i", "Wispr Flow|handy|Detta"], capture_output=True, text=True, timeout=0.5).stdout
+            out = subprocess.run(["pgrep", "-l", "-i", "Wispr Flow|handy|Detta|Gemini"], capture_output=True, text=True, timeout=0.5).stdout
             if "Wispr Flow" in out:
                 running.add("Wispr Flow")
             if "handy" in out.lower():
                 running.add("Handy")
             if "detta" in out.lower():
                 running.add("Detta")
+            if "gemini" in out.lower():
+                running.add("Gemini")
         except Exception:
             # Fallback to Wispr Flow if check fails
             running.add("Wispr Flow")
@@ -95,18 +97,23 @@ class ShortcutWatcher:
         active_apps = cls._get_running_dictation_apps()
 
         # 1. Wispr Flow: Only inspect if Wispr Flow is running and its exact assigned PTT key is held
-        if "Wispr Flow" in active_apps or not active_apps:
+        if "Wispr Flow" in active_apps or (not active_apps and "Gemini" not in active_apps):
             # StateSource 0 = CombinedSessionState, 1 = HIDSystemState
             if cg.CGEventSourceKeyState(0, cls._wispr_ptt_key) or cg.CGEventSourceKeyState(1, cls._wispr_ptt_key):
                 return "Wispr Flow"
 
-        # 2. Handy: Only check if Handy is actually running
+        # 2. Gemini: Defaults to Fn / Globe key (63) on macOS
+        if "Gemini" in active_apps:
+            if cg.CGEventSourceKeyState(0, 63) or cg.CGEventSourceKeyState(1, 63):
+                return "Gemini"
+
+        # 3. Handy: Only check if Handy is actually running
         if "Handy" in active_apps:
             if (cg.CGEventSourceKeyState(0, 59) or cg.CGEventSourceKeyState(1, 59) or
                 cg.CGEventSourceKeyState(0, 62) or cg.CGEventSourceKeyState(1, 62)):
                 return "Handy"
 
-        # 3. Detta: Only check if Detta is actually running
+        # 4. Detta: Only check if Detta is actually running
         if "Detta" in active_apps:
             if (cg.CGEventSourceKeyState(0, 58) or cg.CGEventSourceKeyState(1, 58) or
                 cg.CGEventSourceKeyState(0, 61) or cg.CGEventSourceKeyState(1, 61)):

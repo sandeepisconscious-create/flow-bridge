@@ -21,7 +21,7 @@ from flow_bridge_core.models import CURRENT_VERSION, GITHUB_REPO, LOCK_FILE_PATH
 from flow_bridge_core.platform.pasteboard import Notifier, PasteboardManager
 from flow_bridge_core.platform.shortcut import ShortcutWatcher
 from flow_bridge_core.server import start_ui_server
-from flow_bridge_core.watchers.engines import BaseDictationWatcher, DettaWatcher, HandyWatcher, WisprFlowWatcher
+from flow_bridge_core.watchers.engines import BaseDictationWatcher, DettaWatcher, GeminiWatcher, HandyWatcher, WisprFlowWatcher
 
 
 class FlowBridgeDaemon:
@@ -30,10 +30,12 @@ class FlowBridgeDaemon:
     def __init__(self, config: DaemonConfig):
         self.config = config
         self.version = CURRENT_VERSION
+        self.gemini_watcher = GeminiWatcher()
         self.watchers: List[BaseDictationWatcher] = [
             WisprFlowWatcher(config.wispr_db),
             DettaWatcher(config.detta_db),
             HandyWatcher(config.handy_db),
+            self.gemini_watcher,
         ]
         self._running = True
         self._paused = False
@@ -84,19 +86,36 @@ class FlowBridgeDaemon:
         """
         def ptt_loop():
             was_held = False
+            last_held_app: Optional[str] = None
+            clip_before_hold = ""
 
             while self._running:
                 if self.config.auto_pause_media and not self.is_paused():
                     held_app = ShortcutWatcher.which_app_shortcut_held()
                     if held_app and not was_held:
                         was_held = True
+                        last_held_app = held_app
+                        clip_before_hold = PasteboardManager.get_clipboard()
                         self._auto_paused_media = True
                         MediaController.pause()
                         if self.config.verbose:
                             print(f"[Flow Bridge] 🎙️ {held_app} shortcut held -> Muted audio.")
                     elif not held_app and was_held:
                         was_held = False
+                        released_app = last_held_app
                         self._resume_media_safely()
+
+                        # If Gemini shortcut was released, monitor pasteboard for injected dictation
+                        if released_app == "Gemini":
+                            def capture_gemini():
+                                time.sleep(0.4)
+                                for _ in range(5):
+                                    current_clip = PasteboardManager.get_clipboard()
+                                    if current_clip and current_clip != clip_before_hold:
+                                        self.gemini_watcher.record_dictation(current_clip)
+                                        break
+                                    time.sleep(0.3)
+                            threading.Thread(target=capture_gemini, daemon=True).start()
                 else:
                     if was_held:
                         was_held = False

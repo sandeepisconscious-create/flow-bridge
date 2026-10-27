@@ -2,7 +2,7 @@
   <img src="assets/logo.png" width="128" alt="Flow Bridge Logo" />
   <h1>Flow Bridge</h1>
   <p><strong>Universal macOS Dictation Clipboard Daemon & Menu Bar Hub</strong><br/>
-  <em>Speak into Wispr Flow, Handy, or Detta — then press <code>⌘ + V</code> anywhere to paste.</em></p>
+  <em>Speak into Wispr Flow, Google Gemini, Handy, or Detta — then press <code>⌘ + V</code> anywhere to paste.</em></p>
 
   <p>
     <a href="https://github.com/sandeepisconscious-create/flow-bridge/releases/download/v1.1.3/FlowBridge-Installer.dmg">
@@ -14,12 +14,12 @@
 ---
 ## 💡 What is Flow Bridge?
 
-Have you ever used a voice dictation app on your Mac (**Wispr Flow**, **Handy**, or **Detta**) to talk into **Google AI Studio, ChatGPT, Claude, Cursor, VS Code, Slack, or Terminal**, only for your spoken words to **vanish** or fail to paste?
+Have you ever used a voice dictation app on your Mac (**Wispr Flow**, **Google Gemini**, **Handy**, or **Detta**) to talk into **Google AI Studio, ChatGPT, Claude, Cursor, VS Code, Slack, or Terminal**, only for your spoken words to **vanish** or fail to paste?
 
 **Flow Bridge solves this permanently at the operating system level.**
 
 Whenever you finish dictating:
-1. Flow Bridge catches your spoken words directly from your app's local database in real time.
+1. Flow Bridge catches your spoken words directly from your voice engine or clipboard pipeline in real time.
 2. It immediately copies your transcribed text to the macOS clipboard (`NSPasteboard`).
 3. You press **`⌘ + V`** (Command + V) anywhere you want, and your text appears every single time.
 
@@ -31,11 +31,11 @@ No browser extensions. No focus-loss bugs. It sits silently in your macOS top me
 
 If you arrived here searching for fixes to any of these issues, Flow Bridge is the direct solution:
 
-- ❌ **Wispr Flow / Handy not pasting into ChatGPT, Claude, or Google AI Studio**: Complex reactive web editors (ProseMirror, Draft.js, Angular, React virtual DOM) often drop input focus when a dictation floating popup closes, causing synthetic paste events to be swallowed or ignored.
+- ❌ **Wispr Flow / Gemini / Handy not pasting into ChatGPT, Claude, or Google AI Studio**: Complex reactive web editors (ProseMirror, Draft.js, Angular, React virtual DOM) often drop input focus when a dictation floating popup closes, causing synthetic paste events to be swallowed or ignored.
 - ❌ **Cursor, VS Code, and Terminal ignoring voice paste**: Desktop Electron apps and terminal windows often reject synthetic accessibility paste events triggered by background apps. Flow Bridge bypasses synthetic typing completely by writing straight to the OS clipboard.
-- ❌ **Lost voice text on blur**: If you speak and accidentally click away, your dictation saves to the local database but is never inserted into the active window. Flow Bridge ensures your speech is always waiting on `⌘ + V`.
+- ❌ **Lost voice text on blur**: If you speak and accidentally click away, your dictation is never lost. Flow Bridge ensures your speech is always waiting on `⌘ + V`.
 - ❌ **Overwritten clipboard race conditions**: Dictation apps frequently attempt to restore previous clipboard contents after simulating a paste. Flow Bridge employs an anti-race settle-and-hold loop so your transcribed text cannot be prematurely wiped out.
-- ❌ **Multi-app confusion**: If you switch between Wispr Flow, Handy, and Detta, Flow Bridge monitors all three concurrently and automatically synchronizes whichever engine you spoke into last.
+- ❌ **Multi-app confusion**: If you switch between Wispr Flow, Google Gemini, Handy, and Detta, Flow Bridge monitors all of them concurrently and automatically synchronizes whichever engine you spoke into last.
 
 ---
 
