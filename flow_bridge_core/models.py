@@ -7,7 +7,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-CURRENT_VERSION = "1.1.3"
+CURRENT_VERSION = "1.1.4"
 GITHUB_REPO = "sandeepisconscious-create/flow-bridge"
 DEFAULT_UI_PORT = 49231
 LOCK_FILE_PATH = os.path.expanduser("~/.flow_bridge.lock")

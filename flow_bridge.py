@@ -21,10 +21,8 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from flow_bridge_core.daemon import FlowBridgeDaemon
-from flow_bridge_core.models import CURRENT_VERSION, DaemonConfig, DictationRecord
-from flow_bridge_core.platform.pasteboard import Notifier, PasteboardManager
-from flow_bridge_core.platform.shortcut import ShortcutWatcher
-from flow_bridge_core.watchers.engines import BaseDictationWatcher, DettaWatcher, HandyWatcher, WisprFlowWatcher
+from flow_bridge_core.models import DaemonConfig
+from flow_bridge_core.platform.pasteboard import PasteboardManager
 
 
 def generate_launchd_plist() -> str:

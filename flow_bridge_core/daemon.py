@@ -49,36 +49,9 @@ class FlowBridgeDaemon:
         self._watched_fds: Dict[int, str] = {}
         self._lock_file = None
 
-    def stop(self):
+    def stop(self) -> None:
         """Signals the daemon loop to terminate cleanly."""
         self._running = False
-
-    def _app_has_native_mute(self, app_name: str) -> bool:
-        """Checks if the given dictation engine has a built-in mute/pause feature enabled."""
-        if app_name == "Wispr Flow":
-            try:
-                cfg_path = os.path.expanduser("~/Library/Application Support/Wispr Flow/config.json")
-                if os.path.exists(cfg_path):
-                    with open(cfg_path, "r") as f:
-                        data = json.load(f)
-                    user_prefs = data.get("prefs", {}).get("user", {})
-                    return bool(user_prefs.get("shouldMuteAudio") or user_prefs.get("shouldPauseAudio"))
-            except Exception:
-                pass
-            return False
-
-        elif app_name == "Handy":
-            try:
-                cfg_path = os.path.expanduser("~/Library/Application Support/com.pais.handy/settings_store.json")
-                if os.path.exists(cfg_path):
-                    with open(cfg_path, "r") as f:
-                        data = json.load(f)
-                    return bool(data.get("settings", {}).get("mute_while_recording"))
-            except Exception:
-                pass
-            return False
-
-        return False
 
     def _start_ptt_listener(self) -> None:
         """Monitors push-to-talk shortcut key hold state across dictation apps.
@@ -125,9 +98,6 @@ class FlowBridgeDaemon:
 
         t = threading.Thread(target=ptt_loop, daemon=True)
         t.start()
-
-        # Dock tucking thread: deactivated to preserve third-party Electron status item window hierarchies
-        pass
 
     def _resume_media_safely(self) -> None:
         if self._auto_paused_media:

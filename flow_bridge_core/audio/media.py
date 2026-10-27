@@ -20,15 +20,13 @@ class AudioObjectPropertyAddress(ctypes.Structure):
 
 
 class MediaController:
-    """Manages system-wide media playback and audio output muting directly via macOS CoreAudio & MediaRemote."""
+    """Manages system-wide audio output muting directly via macOS CoreAudio."""
 
     _ca = None
-    _mr = None
     _out_dev: Optional[int] = None
     _addr_mute: Optional[AudioObjectPropertyAddress] = None
     _was_already_muted: bool = False
     _is_muted_by_us: bool = False
-    _paused_media_by_us: bool = False
 
     @classmethod
     def _fourcc(cls, s: str) -> int:
@@ -44,14 +42,6 @@ class MediaController:
                     cls._addr_mute = AudioObjectPropertyAddress(cls._fourcc("mute"), cls._fourcc("outp"), 0)
             except Exception:
                 cls._ca = False
-
-        if cls._mr is None:
-            try:
-                cls._mr = ctypes.cdll.LoadLibrary("/System/Library/PrivateFrameworks/MediaRemote.framework/MediaRemote")
-                cls._mr.MRMediaRemoteSendCommand.argtypes = [ctypes.c_int32, ctypes.c_void_p]
-                cls._mr.MRMediaRemoteSendCommand.restype = ctypes.c_bool
-            except Exception:
-                cls._mr = False
 
     @classmethod
     def _get_default_output_device(cls) -> Optional[int]:

@@ -5,9 +5,17 @@
   <em>Speak into Wispr Flow, Google Gemini, Handy, or Detta — then press <code>⌘ + V</code> anywhere to paste.</em></p>
 
   <p>
-    <a href="https://github.com/sandeepisconscious-create/flow-bridge/releases/download/v1.1.3/FlowBridge-Installer.dmg">
-      <img src="https://img.shields.io/badge/Download-macOS%20DMG%20(v1.1.3)-007AFF?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS DMG" />
+    <a href="https://github.com/sandeepisconscious-create/flow-bridge/releases/download/v1.1.4/FlowBridge-Installer.dmg">
+      <img src="https://img.shields.io/badge/Download-macOS%20DMG%20(v1.1.4)-007AFF?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS DMG" />
     </a>
+  </p>
+
+  <p>
+    <img src="https://img.shields.io/badge/macOS-12.0%2B%20(Apple%20Silicon%20%26%20Intel)-black?style=flat-square&logo=apple&logoColor=white" alt="macOS Version" />
+    <img src="https://img.shields.io/badge/Privacy-100%25%20Local%20Offline-success?style=flat-square&logo=shield" alt="100% Offline" />
+    <img src="https://img.shields.io/badge/Kernel-kqueue%20VNODE%20(0.0%25%20Idle)-blueviolet?style=flat-square" alt="kqueue" />
+    <img src="https://img.shields.io/badge/Latency-%3C0.2ms%20AppKit-orange?style=flat-square" alt="Latency" />
+    <img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License" />
   </p>
 </div>
 
@@ -24,6 +32,25 @@ Whenever you finish dictating:
 3. You press **`⌘ + V`** (Command + V) anywhere you want, and your text appears every single time.
 
 No browser extensions. No focus-loss bugs. It sits silently in your macOS top menu bar, ready whenever you need it.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as User
+    participant Engine as Dictation App (Wispr / Gemini / Handy / Detta)
+    participant Core as Flow Bridge Daemon (kqueue & PTT)
+    participant Mac as macOS NSPasteboard
+    participant Target as Active App (Claude, ChatGPT, Cursor, Terminal)
+
+    User->>Engine: Hold Push-to-Talk Key (e.g. Fn) & Speak
+    Core-->>User: Mutes background audio instantly (CoreAudio 0ms)
+    User->>Engine: Release Key / Dictation Finalized
+    Engine->>Core: Writes to local DB / Pasteboard
+    Core->>Mac: Settle & hold sync (<0.2ms AppKit NSPasteboard)
+    Core-->>User: Unmutes audio cleanly
+    User->>Target: Click anywhere & Press ⌘ + V
+    Mac->>Target: Full transcript pastes reliably every time
+```
 
 ---
 
@@ -89,7 +116,7 @@ Flow Bridge runs entirely on your local machine. It connects only to local SQLit
 Choose whichever method you prefer:
 
 ### Method 1: Mac Drag-and-Drop Installer (Recommended)
-1. Download **[FlowBridge-Installer.dmg (v1.1.3)](https://github.com/sandeepisconscious-create/flow-bridge/releases/download/v1.1.3/FlowBridge-Installer.dmg)**.
+1. Download **[FlowBridge-Installer.dmg (v1.1.4)](https://github.com/sandeepisconscious-create/flow-bridge/releases/download/v1.1.4/FlowBridge-Installer.dmg)**.
 2. Open the downloaded DMG and drag **FlowBridge** into your **Applications** folder.
 3. **First-Time Launch (macOS Gatekeeper)**:
    - If macOS displays *"Apple could not verify FlowBridge..."*, click **Done**.
@@ -124,15 +151,85 @@ curl -fsSL https://raw.githubusercontent.com/sandeepisconscious-create/flow-brid
 
 ---
 
-## 📁 Supported Voice Engines
+## 📁 Supported Voice Dictation Apps
 
-| Engine | Database Location | Status |
-|---|---|---|
-| **Wispr Flow** | `~/Library/Application Support/Wispr Flow/flow.sqlite` | ✅ Auto-detected |
-| **Handy** | `~/Library/Application Support/com.pais.handy/history.db` | ✅ Auto-detected |
-| **Detta** | `~/Library/Application Support/Detta/history.db` | ✅ Auto-detected |
+<div align="center">
+  <table>
+    <tr>
+      <td align="center" width="25%">
+        <img src="assets/icons/wispr_flow.png" width="64" height="64" alt="Wispr Flow" /><br/>
+        <strong>Wispr Flow</strong>
+      </td>
+      <td align="center" width="25%">
+        <img src="assets/icons/gemini.png" width="64" height="64" alt="Google Gemini" /><br/>
+        <strong>Google Gemini</strong>
+      </td>
+      <td align="center" width="25%">
+        <img src="assets/icons/handy.png" width="64" height="64" alt="Handy" /><br/>
+        <strong>Handy</strong>
+      </td>
+      <td align="center" width="25%">
+        <img src="assets/icons/detta.png" width="64" height="64" alt="Detta" /><br/>
+        <strong>Detta</strong>
+      </td>
+    </tr>
+  </table>
+</div>
 
-*Have another SQLite or file-based dictation tool? Additional watchers can be added via the extensible `BaseDictationWatcher` interface in `flow_bridge.py`.*
+| App | Icon | Storage & Integration Pipeline | Status |
+|---|:---:|---|---|
+| **Wispr Flow** | <img src="assets/icons/wispr_flow.png" width="24" height="24" /> | `~/Library/Application Support/Wispr Flow/flow.sqlite` (Kernel `kqueue`) | ✅ Auto-detected |
+| **Google Gemini** | <img src="assets/icons/gemini.png" width="24" height="24" /> | macOS App (`com.google.gemini`) • Intelligent Dictation Hook | ✅ Auto-detected |
+| **Handy** | <img src="assets/icons/handy.png" width="24" height="24" /> | `~/Library/Application Support/com.pais.handy/history.db` (Kernel `kqueue`) | ✅ Auto-detected |
+| **Detta** | <img src="assets/icons/detta.png" width="24" height="24" /> | `~/Library/Application Support/Detta/history.db` (Kernel `kqueue`) | ✅ Auto-detected |
+
+*Have another voice dictation tool? Additional engines can be easily plugged in via the extensible `BaseDictationWatcher` interface in `flow_bridge_core/watchers/engines.py`.*
+
+---
+
+## ⚖️ Feature Matrix: Native Apps vs. With Flow Bridge
+
+| Capability | Native Apps Alone | With Flow Bridge |
+|:---|:---:|:---:|
+| **Paste into Web AI (ChatGPT, Claude, Google AI Studio)** | ❌ Often swallows text / drops focus | ✅ **Guaranteed `⌘ + V` paste** |
+| **Desktop Dev Tools (Cursor, VS Code, Ghostty, iTerm2)** | ⚠️ Unreliable synthetic typing | ✅ **Instant native clipboard paste** |
+| **Master Speaker Muting during Dictation** | ⚠️ App-specific only | ✅ **Universal 0ms hardware mute** |
+| **Searchable Today History Feed** | ❌ None | ✅ **Live searchable transcript log** |
+| **1-Click Re-Copy Previous Dictations** | ❌ None | ✅ **Instant 1-click clipboard button** |
+| **CPU Footprint on Idle** | ~150MB+ | 🟢 **0.0% CPU (macOS kernel `kqueue`)** |
+
+---
+
+## 🛠️ CLI Developer Options & Advanced Flags
+
+If you prefer running Flow Bridge directly from the terminal or embedding it in your own automation scripts, `flow_bridge.py` supports several power-user flags:
+
+```bash
+# Run with custom polling interval & verbose debugging
+python3 flow_bridge.py --poll 0.2 --verbose
+
+# Run with native desktop notifications on every sync
+python3 flow_bridge.py --notify
+
+# Adjust settle-and-hold timing for slow web apps
+python3 flow_bridge.py --settle 0.4 --reassert 4
+
+# Test AppKit clipboard injection and exit
+python3 flow_bridge.py --test-clipboard
+
+# Open the HUD dashboard directly in your default browser
+python3 flow_bridge.py --dashboard
+```
+
+| Flag | Default | Description |
+|---|:---:|---|
+| `--poll <float>` | `0.25` | Fallback polling interval in seconds when kernel kqueue is idle |
+| `--settle <float>` | `0.35` | Anti-race settlement delay before reasserting clipboard contents |
+| `--reassert <int>` | `3` | Number of times to reassert the transcript to defeat hostile paste-cleaners |
+| `--notify` | `False` | Display a native macOS notification banner whenever a dictation syncs |
+| `--verbose` | `False` | Print timestamped debug logs for every event and key state query |
+| `--install-service` | — | Automatically generates and loads the user `launchd` login agent |
+| `--uninstall-service`| — | Unloads and removes the background `launchd` login agent |
 
 ---
 

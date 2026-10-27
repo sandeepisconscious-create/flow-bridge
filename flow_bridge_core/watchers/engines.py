@@ -1,5 +1,5 @@
 """
-Dictation Database Watchers for Wispr Flow, Handy, and Detta.
+Dictation Database Watchers for Wispr Flow, Google Gemini, Handy, and Detta.
 """
 
 from __future__ import annotations

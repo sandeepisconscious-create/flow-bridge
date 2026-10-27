@@ -126,7 +126,7 @@ cat <<'EOF' > "$DIST_DIR/launcher.m"
     }
     NSMenu *menu = [[NSMenu alloc] initWithTitle:@"Flow Bridge"];
     
-    NSMenuItem *header = [[NSMenuItem alloc] initWithTitle:@"Flow Bridge v1.1.3" action:nil keyEquivalent:@""];
+    NSMenuItem *header = [[NSMenuItem alloc] initWithTitle:@"Flow Bridge v1.1.4" action:nil keyEquivalent:@""];
     [header setEnabled:NO];
     [menu addItem:header];
     [menu addItem:[NSMenuItem separatorItem]];
@@ -266,9 +266,9 @@ cat <<EOF > "$APP_PATH/Contents/Info.plist"
     <key>CFBundleIdentifier</key>
     <string>com.flowbridge.app</string>
     <key>CFBundleVersion</key>
-    <string>1.1.3</string>
+    <string>1.1.4</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.1.3</string>
+    <string>1.1.4</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleExecutable</key>
