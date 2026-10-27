@@ -757,9 +757,27 @@
         const result = await res.json();
         if (result.success) {
           btn.innerHTML = `<span>Installed! Restarting...</span>`;
-          setTimeout(() => {
-            window.location.reload();
-          }, 3000);
+          // Wait for daemon to exit and restart under launchd
+          let attempts = 0;
+          const pollInterval = setInterval(async () => {
+            attempts++;
+            try {
+              const ping = await fetch('/api/check-update?t=' + Date.now());
+              if (ping.ok) {
+                const info = await ping.json();
+                if (!info.has_update || attempts > 15) {
+                  clearInterval(pollInterval);
+                  window.location.reload();
+                }
+              }
+            } catch (err) {
+              // Expected while daemon is restarting
+            }
+            if (attempts > 20) {
+              clearInterval(pollInterval);
+              window.location.reload();
+            }
+          }, 800);
         } else {
           btn.disabled = false;
           btn.innerHTML = `<span>Retry Update</span>`;

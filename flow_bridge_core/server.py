@@ -128,6 +128,13 @@ def start_ui_server(daemon: FlowBridgeDaemon, port: int = 49231) -> ThreadingHTT
                 self.send_header("Access-Control-Allow-Origin", "*")
                 self.end_headers()
                 self.wfile.write(body)
+
+                if res.get("success"):
+                    def do_restart():
+                        time.sleep(1.0)
+                        # Exit current process; launchd KeepAlive=true will immediately restart with the updated code
+                        os._exit(0)
+                    threading.Thread(target=do_restart, daemon=True).start()
                 return
 
             elif self.path == "/api/quit":

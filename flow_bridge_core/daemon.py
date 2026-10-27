@@ -213,6 +213,17 @@ class FlowBridgeDaemon:
             if [ -n "$MOUNT" ]; then
                 cp -R "$MOUNT/FlowBridge.app" /Applications/
                 xattr -cr /Applications/FlowBridge.app 2>/dev/null || true
+                
+                # Sync new version files directly into ~/.flow-bridge
+                APP_RES="/Applications/FlowBridge.app/Contents/Resources"
+                TARGET_DIR="$HOME/.flow-bridge"
+                if [ -d "$APP_RES" ]; then
+                    cp -R "$APP_RES/flow_bridge_core" "$TARGET_DIR/" 2>/dev/null || true
+                    cp -R "$APP_RES/ui" "$TARGET_DIR/" 2>/dev/null || true
+                    cp -f "$APP_RES/flow_bridge.py" "$TARGET_DIR/" 2>/dev/null || true
+                    chmod +x "$TARGET_DIR/flow_bridge.py" 2>/dev/null || true
+                fi
+                
                 hdiutil detach "$MOUNT" -force 2>/dev/null || true
             fi
             rm -f "{tmp_dmg}"
