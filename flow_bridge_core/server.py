@@ -10,6 +10,7 @@ import subprocess
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlparse
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -44,7 +45,10 @@ def start_ui_server(daemon: FlowBridgeDaemon, port: int = 49231) -> ThreadingHTT
             pass  # Keep terminal output completely silent and clean
 
         def do_GET(self):
-            if self.path in ("/", "/index.html"):
+            parsed_url = urlparse(self.path)
+            clean_path = parsed_url.path
+
+            if clean_path in ("/", "/index.html"):
                 html_file = os.path.join(ui_dir, "index.html")
                 if os.path.exists(html_file):
                     with open(html_file, "rb") as f:
@@ -54,9 +58,9 @@ def start_ui_server(daemon: FlowBridgeDaemon, port: int = 49231) -> ThreadingHTT
                     self.end_headers()
                     self.wfile.write(content)
                     return
-            elif self.path in ("/assets/logo.png", "/logo.png", "/favicon.ico", "/favicon.png", "/apple-touch-icon.png"):
+            elif clean_path in ("/assets/logo.png", "/logo.png", "/favicon.ico", "/favicon.png", "/apple-touch-icon.png"):
                 target_file = logo_path
-                if self.path in ("/favicon.ico", "/favicon.png"):
+                if clean_path in ("/favicon.ico", "/favicon.png"):
                     fav = os.path.join(ui_dir, "favicon.png")
                     if os.path.exists(fav):
                         target_file = fav
@@ -69,17 +73,70 @@ def start_ui_server(daemon: FlowBridgeDaemon, port: int = 49231) -> ThreadingHTT
                     self.end_headers()
                     self.wfile.write(content)
                     return
-            elif self.path == "/api/state":
+            elif clean_path == "/api/state":
                 data = {
                     "version": daemon.version,
                     "paused": daemon.is_paused(),
                     "auto_pause_media": daemon.config.auto_pause_media,
                     "hide_apps_to_menu_bar": daemon.config.hide_apps_to_menu_bar,
                     "apps": daemon.get_app_status(),
-                    "history": daemon.get_recent_history(limit=25),
+                    "stats": daemon.get_analytics_stats(),
+                    "history": daemon.get_recent_history(limit=10),
                     "update": daemon.check_for_update()
                 }
                 body = json.dumps(data).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            elif clean_path == "/api/history":
+                params = parse_qs(parsed_url.query)
+                limit = int(params.get("limit", [50])[0])
+                offset = int(params.get("offset", [0])[0])
+                engine = params.get("engine", ["all"])[0]
+                query = params.get("query", [""])[0]
+
+                data = daemon.get_paginated_history(limit=limit, offset=offset, engine=engine, query=query)
+                body = json.dumps(data).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            elif clean_path == "/api/stats":
+                data = daemon.get_analytics_stats()
+                body = json.dumps(data).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            elif clean_path == "/api/history/delete":
+                params = parse_qs(parsed_url.query)
+                unique_id = params.get("id", [""])[0]
+                range_type = params.get("range", [""])[0]
+                engine = params.get("engine", ["all"])[0]
+
+                if unique_id:
+                    success = daemon.delete_dictation(unique_id)
+                    deleted_count = 1 if success else 0
+                elif range_type:
+                    deleted_count = daemon.delete_dictations_range(range_type=range_type, engine=engine)
+                    success = True
+                else:
+                    success = False
+                    deleted_count = 0
+
+                stats = daemon.get_analytics_stats()
+                body = json.dumps({
+                    "success": success,
+                    "deleted_count": deleted_count,
+                    "stats": stats
+                }).encode("utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json; charset=utf-8")
                 self.send_header("Access-Control-Allow-Origin", "*")
@@ -166,6 +223,10 @@ def start_ui_server(daemon: FlowBridgeDaemon, port: int = 49231) -> ThreadingHTT
 
             self.send_response(404)
             self.end_headers()
+
+        def do_POST(self):
+            # Forward all POST requests to same routing logic
+            self.do_GET()
 
     server = ThreadingHTTPServer(("127.0.0.1", port), UIHandler)
     t = threading.Thread(target=server.serve_forever, daemon=True)

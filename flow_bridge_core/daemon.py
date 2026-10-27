@@ -21,6 +21,7 @@ from flow_bridge_core.models import CURRENT_VERSION, GITHUB_REPO, LOCK_FILE_PATH
 from flow_bridge_core.platform.pasteboard import Notifier, PasteboardManager
 from flow_bridge_core.platform.shortcut import ShortcutWatcher
 from flow_bridge_core.server import start_ui_server
+from flow_bridge_core.storage import DictationStorage
 from flow_bridge_core.watchers.engines import BaseDictationWatcher, DettaWatcher, GeminiWatcher, HandyWatcher, WisprFlowWatcher
 
 
@@ -30,7 +31,8 @@ class FlowBridgeDaemon:
     def __init__(self, config: DaemonConfig):
         self.config = config
         self.version = CURRENT_VERSION
-        self.gemini_watcher = GeminiWatcher()
+        self.storage = DictationStorage(config.dictations_db)
+        self.gemini_watcher = GeminiWatcher(config.dictations_db, storage=self.storage)
         self.watchers: List[BaseDictationWatcher] = [
             WisprFlowWatcher(config.wispr_db),
             DettaWatcher(config.detta_db),
@@ -41,6 +43,8 @@ class FlowBridgeDaemon:
         self._paused = False
         self._cached_update_info: Optional[dict] = None
         self._last_update_check: float = 0.0
+        self._last_self_copied_text: str = ""
+        self._last_ptt_release: float = 0.0
 
         # Audio/Video pause state
         self._auto_paused_media = False
@@ -60,44 +64,125 @@ class FlowBridgeDaemon:
         def ptt_loop():
             was_held = False
             last_held_app: Optional[str] = None
-            clip_before_hold = ""
 
             while self._running:
-                if self.config.auto_pause_media and not self.is_paused():
-                    held_app = ShortcutWatcher.which_app_shortcut_held()
-                    if held_app and not was_held:
-                        was_held = True
-                        last_held_app = held_app
-                        clip_before_hold = PasteboardManager.get_clipboard()
+                held_app = ShortcutWatcher.which_app_shortcut_held()
+                if held_app and not was_held:
+                    was_held = True
+                    last_held_app = held_app
+                    if self.config.auto_pause_media and not self.is_paused():
                         self._auto_paused_media = True
                         MediaController.pause()
-                        if self.config.verbose:
-                            print(f"[Flow Bridge] 🎙️ {held_app} shortcut held -> Muted audio.")
-                    elif not held_app and was_held:
-                        was_held = False
-                        released_app = last_held_app
-                        self._resume_media_safely()
+                    if self.config.verbose:
+                        print(f"[Flow Bridge] 🎙️ {held_app} shortcut held.")
+                elif not held_app and was_held:
+                    was_held = False
+                    self._last_ptt_release = time.time()
+                    self._resume_media_safely()
+                    if self.config.verbose:
+                        print(f"[Flow Bridge] ▶️ {last_held_app} shortcut released.")
 
-                        # If Gemini shortcut was released, monitor pasteboard for injected dictation
-                        if released_app == "Gemini":
-                            def capture_gemini():
-                                time.sleep(0.4)
-                                for _ in range(5):
-                                    current_clip = PasteboardManager.get_clipboard()
-                                    if current_clip and current_clip != clip_before_hold:
-                                        self.gemini_watcher.record_dictation(current_clip)
-                                        break
-                                    time.sleep(0.3)
-                            threading.Thread(target=capture_gemini, daemon=True).start()
-                else:
-                    if was_held:
-                        was_held = False
-                        self._resume_media_safely()
-                # 80ms sleep (~12 Hz) is completely responsive while reducing CPU wakeups by 82%
                 time.sleep(0.08)
 
         t = threading.Thread(target=ptt_loop, daemon=True)
         t.start()
+
+    def _start_gemini_clipboard_listener(self) -> None:
+        """
+        Monitors macOS pasteboard change counts at high frequency (35ms).
+        Instantly captures Gemini 'Stream to Cursor' dictation output and voice injections,
+        storing them permanently in Flow Bridge local storage.
+        """
+        def gemini_listener_loop():
+            last_change_count = PasteboardManager.get_change_count()
+            last_recorded_text = ""
+
+            while self._running:
+                try:
+                    curr_count = PasteboardManager.get_change_count()
+                    if curr_count != last_change_count:
+                        last_change_count = curr_count
+                        clip_text = PasteboardManager.get_clipboard().strip()
+
+                        if clip_text and clip_text != self._last_self_copied_text and clip_text != last_recorded_text:
+                            # Verify if Gemini is running or active
+                            gemini_available = self.gemini_watcher.is_available()
+                            
+                            now = time.time()
+                            front = PasteboardManager.get_frontmost_app()
+                            front_name = front.get("name", "").lower()
+                            front_bid = front.get("bundle_id", "").lower()
+
+                            is_gemini_front = ("gemini" in front_name) or ("gemini" in front_bid)
+                            was_ptt_recent = (now - self._last_ptt_release) < 15.0
+
+                            # Capture when Gemini is frontmost, or user recently spoke/used PTT, or Gemini is running
+                            should_capture = gemini_available and (is_gemini_front or was_ptt_recent or len(clip_text) > 3)
+
+                            # Filter out non-dictation noise (file paths, short code snippets, or URLs)
+                            if should_capture:
+                                is_noise = (
+                                    clip_text.startswith(("/", "http://", "https://", "file://", "git@")) or
+                                    "\n" in clip_text and len(clip_text.splitlines()) > 5
+                                )
+                                if not is_noise:
+                                    latest = self.storage.get_latest()
+                                    if not latest or latest.get("text", "").strip() != clip_text:
+                                        rec = self.gemini_watcher.record_dictation(clip_text, source="Gemini")
+                                        if rec:
+                                            last_recorded_text = clip_text
+                                            self._last_self_copied_text = clip_text
+                                            ts_str = datetime.fromtimestamp(rec.timestamp).strftime("%H:%M:%S")
+                                            preview = (clip_text[:75] + "…") if len(clip_text) > 75 else clip_text
+                                            print(f"[{ts_str}] 🎙️ [Gemini Synced -> Storage]: {preview}", flush=True)
+
+                                            if self.config.show_notifications:
+                                                Notifier.notify(
+                                                    title="Flow Bridge",
+                                                    subtitle="Gemini Dictation Synced",
+                                                    message=clip_text
+                                                )
+                                            if self._auto_paused_media:
+                                                self._resume_media_safely()
+                except Exception as e:
+                    if self.config.verbose:
+                        print(f"[Flow Bridge] Gemini listener warning: {e}", file=sys.stderr)
+
+                time.sleep(0.035)
+
+        t = threading.Thread(target=gemini_listener_loop, daemon=True)
+        t.start()
+
+    def _sync_external_watchers_to_storage(self) -> None:
+        """Startup sync of existing dictation records from external engines into local storage."""
+        for watcher in self.watchers:
+            if watcher.source_name != "Gemini" and watcher.is_available():
+                try:
+                    records = watcher.get_history(limit=2000)
+                    if records:
+                        saved = self.storage.save_batch(records)
+                        if self.config.verbose and saved > 0:
+                            print(f"[Flow Bridge] Synced {saved} records from {watcher.source_name} to local storage.")
+                except Exception as e:
+                    if self.config.verbose:
+                        print(f"[Flow Bridge] Sync warning for {watcher.source_name}: {e}")
+
+        # Also migrate from legacy history.sqlite if it exists
+        legacy_db = self.config.flow_bridge_db
+        if os.path.exists(legacy_db):
+            try:
+                import sqlite3
+                with sqlite3.connect(legacy_db, timeout=2.0) as conn:
+                    cur = conn.cursor()
+                    cur.execute("SELECT unique_id, source, timestamp, text FROM dictation_history")
+                    legacy_records = [
+                        DictationRecord(source_name=r[1], unique_id=r[0], timestamp=float(r[2]), text=r[3])
+                        for r in cur.fetchall()
+                    ]
+                    if legacy_records:
+                        self.storage.save_batch(legacy_records)
+            except Exception:
+                pass
 
     def _resume_media_safely(self) -> None:
         if self._auto_paused_media:
@@ -225,39 +310,36 @@ class FlowBridgeDaemon:
         print("=" * 66)
 
     def get_app_status(self) -> List[dict]:
-        """Returns detection status of all registered dictation engines."""
+        """Returns detection status and record count of all registered dictation engines."""
         return [
-            {"name": w.source_name, "available": w.is_available(), "path": w.db_path}
+            {
+                "name": w.source_name,
+                "available": w.is_available(),
+                "path": w.db_path,
+                "count": self.storage.get_count(w.source_name)
+            }
             for w in self.watchers
         ]
 
+    def get_analytics_stats(self) -> dict:
+        """Calculates total dictations, words spoken, and estimated typing hours saved from local storage."""
+        return self.storage.get_stats()
+
+    def get_paginated_history(self, limit: int = 50, offset: int = 0, engine: str = "", query: str = "") -> dict:
+        """Returns paginated, searchable history across all or specific engines from local storage."""
+        return self.storage.get_paginated(limit=limit, offset=offset, query=query, engine=engine)
+
     def get_recent_history(self, limit: int = 10) -> List[dict]:
-        """Combines and returns the latest N dictations across all detected engines."""
-        all_records: List[DictationRecord] = []
-        for watcher in self.watchers:
-            all_records.extend(watcher.get_history(limit=limit))
+        """Combines and returns the latest N dictations across all engines from local storage."""
+        return self.storage.get_recent(limit=limit)
 
-        all_records.sort(key=lambda r: r.timestamp, reverse=True)
-        top = all_records[:limit]
+    def delete_dictation(self, unique_id: str) -> bool:
+        """Deletes a single dictation by unique ID."""
+        return self.storage.delete_by_id(unique_id)
 
-        def format_time_compact(ts: float) -> str:
-            dt = datetime.fromtimestamp(ts)
-            # e.g. 6:53pm (lowercase, no leading zero on hour)
-            hour = dt.strftime("%I").lstrip("0") or "12"
-            minute = dt.strftime("%M")
-            ampm = dt.strftime("%p").lower()
-            return f"{hour}:{minute}{ampm}"
-
-        return [
-            {
-                "id": r.unique_id,
-                "source": r.source_name,
-                "text": r.text,
-                "timestamp": r.timestamp,
-                "time": format_time_compact(r.timestamp)
-            }
-            for r in top
-        ]
+    def delete_dictations_range(self, range_type: str, engine: str = "") -> int:
+        """Deletes dictations matching a time-range filter."""
+        return self.storage.delete_range(range_type=range_type, engine=engine)
 
     def _acquire_single_instance_lock(self) -> None:
         """Ensures only a single instance of Flow Bridge runs concurrently."""
@@ -346,22 +428,24 @@ class FlowBridgeDaemon:
     def run(self) -> None:
         self._acquire_single_instance_lock()
         self._setup_signal_handlers()
+        self._sync_external_watchers_to_storage()
         self._server = start_ui_server(self)
         self._start_ptt_listener()
+        self._start_gemini_clipboard_listener()
         self._setup_kqueue_watchers()
         self.print_status()
 
         last_copied_id: Optional[str] = None
         newest_startup_ts: float = 0.0
 
-        for watcher in self.watchers:
-            record = watcher.get_latest()
-            if record and record.timestamp > newest_startup_ts:
-                newest_startup_ts = record.timestamp
-                last_copied_id = record.unique_id
+        latest = self.storage.get_latest()
+        if latest:
+            newest_startup_ts = latest["timestamp"]
+            last_copied_id = latest["id"]
+            self._last_self_copied_text = latest["text"]
 
         if last_copied_id and self.config.verbose:
-            print(f"[Flow Bridge] Initialized baseline record: {last_copied_id}")
+            print(f"[Flow Bridge] Initialized baseline record from storage: {last_copied_id}")
 
         last_fd_resync = time.time()
 
@@ -369,7 +453,9 @@ class FlowBridgeDaemon:
             try:
                 if self._kq and len(self._watched_fds) > 0:
                     try:
-                        self._kq.control(None, 8, 0.5)
+                        events = self._kq.control(None, 8, 0.5)
+                        if events:
+                            time.sleep(0.05)
                     except InterruptedError:
                         continue
                     except Exception:
@@ -394,6 +480,8 @@ class FlowBridgeDaemon:
 
                     if winner.unique_id != last_copied_id:
                         last_copied_id = winner.unique_id
+                        self.storage.save_dictation(winner)
+                        self._last_self_copied_text = winner.text
 
                         if not self.is_paused():
                             PasteboardManager.set_clipboard(winner.text)

@@ -28,7 +28,7 @@ cat <<'EOF' > "$DIST_DIR/launcher.m"
 #import <WebKit/WebKit.h>
 #import <Foundation/Foundation.h>
 
-@interface AppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate>
+@interface AppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate, WKScriptMessageHandler, WKNavigationDelegate>
 @property (strong, nonatomic) NSStatusItem *statusItem;
 @property (strong, nonatomic) NSPopover *popover;
 @property (strong, nonatomic) NSWindow *window;
@@ -97,10 +97,12 @@ cat <<'EOF' > "$DIST_DIR/launcher.m"
     vc.view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 540, 580)];
     
     WKWebViewConfiguration *pConfig = [[WKWebViewConfiguration alloc] init];
+    [pConfig.userContentController addScriptMessageHandler:self name:@"flowBridge"];
     self.popoverWebView = [[WKWebView alloc] initWithFrame:vc.view.bounds configuration:pConfig];
     self.popoverWebView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    self.popoverWebView.navigationDelegate = self;
     [self.popoverWebView setValue:@NO forKey:@"drawsBackground"];
-    [self.popoverWebView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"http://127.0.0.1:49231"]]];
+    [self.popoverWebView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"http://127.0.0.1:49231"] cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:10.0]];
     [vc.view addSubview:self.popoverWebView];
     
     self.popover.contentViewController = vc;
@@ -109,6 +111,67 @@ cat <<'EOF' > "$DIST_DIR/launcher.m"
     // Main window is lazy-loaded only when requested (saves 150MB RAM and WebKit background threads)
     self.window = nil;
     self.windowWebView = nil;
+
+    // Start background poller to ensure UI loads as soon as server is ready
+    [self pollAndLoadPopover];
+}
+
+- (void)pollAndLoadPopover {
+    NSURL *url = [NSURL URLWithString:@"http://127.0.0.1:49231/api/state"];
+    NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithURL:url completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+        NSHTTPURLResponse *http = (NSHTTPURLResponse *)response;
+        if (!error && http && http.statusCode == 200) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                if (!self.popoverWebView.URL || [self.popoverWebView.URL.absoluteString isEqualToString:@"about:blank"] || self.popoverWebView.URL.absoluteString.length == 0) {
+                    NSURL *pageUrl = [NSURL URLWithString:@"http://127.0.0.1:49231"];
+                    [self.popoverWebView loadRequest:[NSURLRequest requestWithURL:pageUrl cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:10.0]];
+                }
+            });
+        } else {
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.25 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                [self pollAndLoadPopover];
+            });
+        }
+    }];
+    [task resume];
+}
+
+- (void)webView:(WKWebView *)webView didFailProvisionalNavigation:(WKNavigation *)navigation withError:(NSError *)error {
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.4 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        NSString *urlStr = (webView == self.windowWebView) ? @"http://127.0.0.1:49231?context=window" : @"http://127.0.0.1:49231";
+        [webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:urlStr] cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:10.0]];
+    });
+}
+
+- (void)webView:(WKWebView *)webView didFailNavigation:(WKNavigation *)navigation withError:(NSError *)error {
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.4 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        NSString *urlStr = (webView == self.windowWebView) ? @"http://127.0.0.1:49231?context=window" : @"http://127.0.0.1:49231";
+        [webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:urlStr] cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:10.0]];
+    });
+}
+
+- (void)userContentController:(WKUserContentController *)userContentController didReceiveScriptMessage:(WKScriptMessage *)message {
+    if ([message.name isEqualToString:@"flowBridge"]) {
+        NSString *action = [message.body description];
+        if ([action isEqualToString:@"quit"]) {
+            [self quitAction:nil];
+        } else if ([action hasPrefix:@"openWindow"]) {
+            if (self.popover.isShown) {
+                [self.popover performClose:nil];
+            }
+            [self openWindowAction:nil];
+            if ([action containsString:@"tab=history"] && self.windowWebView) {
+                [self.windowWebView evaluateJavaScript:@"if (typeof switchWindowTab === 'function') switchWindowTab('history');" completionHandler:nil];
+            }
+        } else if ([action isEqualToString:@"closeWindow"]) {
+            if (self.window) {
+                [self.window orderOut:nil];
+            }
+            if (self.popover.isShown) {
+                [self.popover performClose:nil];
+            }
+        }
+    }
 }
 
 - (void)statusItemClicked:(id)sender {
@@ -126,12 +189,12 @@ cat <<'EOF' > "$DIST_DIR/launcher.m"
     }
     NSMenu *menu = [[NSMenu alloc] initWithTitle:@"Flow Bridge"];
     
-    NSMenuItem *header = [[NSMenuItem alloc] initWithTitle:@"Flow Bridge v1.1.4" action:nil keyEquivalent:@""];
+    NSMenuItem *header = [[NSMenuItem alloc] initWithTitle:@"Flow Bridge v1.1.5" action:nil keyEquivalent:@""];
     [header setEnabled:NO];
     [menu addItem:header];
     [menu addItem:[NSMenuItem separatorItem]];
     
-    NSMenuItem *openDashboard = [[NSMenuItem alloc] initWithTitle:@"Open Dashboard Window" action:@selector(openWindowAction:) keyEquivalent:@"o"];
+    NSMenuItem *openDashboard = [[NSMenuItem alloc] initWithTitle:@"Open Flow Bridge App" action:@selector(openWindowAction:) keyEquivalent:@"o"];
     openDashboard.target = self;
     [menu addItem:openDashboard];
     
@@ -150,9 +213,10 @@ cat <<'EOF' > "$DIST_DIR/launcher.m"
 
 - (void)openWindowAction:(id)sender {
     if (!self.window) {
-        NSRect frame = NSMakeRect(0, 0, 720, 680);
-        NSUInteger style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskFullSizeContentView;
+        NSRect frame = NSMakeRect(0, 0, 1020, 700);
+        NSUInteger style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable | NSWindowStyleMaskFullSizeContentView;
         self.window = [[NSWindow alloc] initWithContentRect:frame styleMask:style backing:NSBackingStoreBuffered defer:NO];
+        self.window.minSize = NSMakeSize(820, 540);
         [self.window center];
         self.window.title = @"Flow Bridge";
         self.window.titlebarAppearsTransparent = YES;
@@ -161,13 +225,20 @@ cat <<'EOF' > "$DIST_DIR/launcher.m"
         self.window.delegate = self;
         
         WKWebViewConfiguration *wConfig = [[WKWebViewConfiguration alloc] init];
+        [wConfig.userContentController addScriptMessageHandler:self name:@"flowBridge"];
         self.windowWebView = [[WKWebView alloc] initWithFrame:frame configuration:wConfig];
         self.windowWebView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+        self.windowWebView.navigationDelegate = self;
         [self.windowWebView setValue:@NO forKey:@"drawsBackground"];
-        [self.windowWebView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"http://127.0.0.1:49231"]]];
+        [self.windowWebView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"http://127.0.0.1:49231?context=window"] cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:10.0]];
         [self.window.contentView addSubview:self.windowWebView];
     } else {
-        [self.windowWebView reload];
+        if (!self.windowWebView.URL || [self.windowWebView.URL.absoluteString isEqualToString:@"about:blank"] || self.windowWebView.URL.absoluteString.length == 0) {
+            NSURL *url = [NSURL URLWithString:@"http://127.0.0.1:49231?context=window"];
+            [self.windowWebView loadRequest:[NSURLRequest requestWithURL:url cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:10.0]];
+        } else {
+            [self.windowWebView reload];
+        }
     }
     [self.window makeKeyAndOrderFront:nil];
     [NSApp activateIgnoringOtherApps:YES];
@@ -196,7 +267,12 @@ cat <<'EOF' > "$DIST_DIR/launcher.m"
     if (self.popover.isShown) {
         [self.popover performClose:sender];
     } else {
-        [self.popoverWebView reload];
+        if (!self.popoverWebView.URL || [self.popoverWebView.URL.absoluteString isEqualToString:@"about:blank"] || self.popoverWebView.URL.absoluteString.length == 0) {
+            NSURL *url = [NSURL URLWithString:@"http://127.0.0.1:49231"];
+            [self.popoverWebView loadRequest:[NSURLRequest requestWithURL:url cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:10.0]];
+        } else {
+            [self.popoverWebView reload];
+        }
         [self.popover showRelativeToRect:self.statusItem.button.bounds ofView:self.statusItem.button preferredEdge:NSRectEdgeMinY];
         [NSApp activateIgnoringOtherApps:YES];
     }
@@ -222,6 +298,27 @@ cat <<'EOF' > "$DIST_DIR/launcher.m"
     return NO;
 }
 
+- (void)applicationWillTerminate:(NSNotification *)notification {
+    // Cleanly unload launchd service so sync daemon doesn't stay running
+    NSString *plist = [@"~/Library/LaunchAgents/com.flowbridge.clipboard.sync.plist" stringByExpandingTildeInPath];
+    NSTask *task = [[NSTask alloc] init];
+    task.launchPath = @"/bin/launchctl";
+    task.arguments = @[@"unload", plist];
+    @try {
+        [task launch];
+        [task waitUntilExit];
+    } @catch (NSException *e) {}
+    
+    // Terminate any remaining flow_bridge.py python processes
+    NSTask *pkill = [[NSTask alloc] init];
+    pkill.launchPath = @"/usr/bin/pkill";
+    pkill.arguments = @[@"-f", @"flow_bridge.py"];
+    @try {
+        [pkill launch];
+        [pkill waitUntilExit];
+    } @catch (NSException *e) {}
+}
+
 @end
 
 int main(int argc, const char * argv[]) {
@@ -241,6 +338,7 @@ rm -f "$DIST_DIR/launcher.m" "$DIST_DIR/test_status_app.m" "$DIST_DIR/test_statu
 
 # 2. Bundle python sync engine, UI dashboard, custom icons
 RESOURCES_DIR="$APP_PATH/Contents/Resources"
+rm -rf "$RESOURCES_DIR/flow_bridge_core" "$RESOURCES_DIR/ui" 2>/dev/null || true
 cp "$REPO_ROOT/flow_bridge.py" "$RESOURCES_DIR/flow_bridge.py"
 cp -R "$REPO_ROOT/flow_bridge_core" "$RESOURCES_DIR/flow_bridge_core"
 cp -R "$REPO_ROOT/ui" "$RESOURCES_DIR/ui"
@@ -266,9 +364,9 @@ cat <<EOF > "$APP_PATH/Contents/Info.plist"
     <key>CFBundleIdentifier</key>
     <string>com.flowbridge.app</string>
     <key>CFBundleVersion</key>
-    <string>1.1.4</string>
+    <string>1.1.5</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.1.4</string>
+    <string>1.1.5</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleExecutable</key>

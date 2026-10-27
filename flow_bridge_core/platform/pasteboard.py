@@ -55,6 +55,10 @@ class PasteboardManager:
                 objc.objc_msgSend,
                 ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_char_p)
             )
+            cls._msg_ptr_ptr = ctypes.cast(
+                objc.objc_msgSend,
+                ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p)
+            )
             cls._msg_bool_two = ctypes.cast(
                 objc.objc_msgSend,
                 ctypes.CFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p)
@@ -69,6 +73,19 @@ class PasteboardManager:
             gen_sel = objc.sel_registerName(b"generalPasteboard")
             cls._pb = cls._msg_void_void(ns_pb_cls, gen_sel)
             cls._type_str = ctypes.c_void_p.in_dll(appkit, "NSPasteboardTypeString").value
+            cls._get_sel = objc.sel_registerName(b"stringForType:")
+            cls._utf8_str_sel = objc.sel_registerName(b"UTF8String")
+            cls._change_count_sel = objc.sel_registerName(b"changeCount")
+            cls._msg_int_void = ctypes.cast(
+                objc.objc_msgSend,
+                ctypes.CFUNCTYPE(ctypes.c_long, ctypes.c_void_p, ctypes.c_void_p)
+            )
+
+            ws_cls = objc.objc_getClass(b"NSWorkspace")
+            cls._ws = cls._msg_void_void(ws_cls, objc.sel_registerName(b"sharedWorkspace"))
+            cls._frontmost_sel = objc.sel_registerName(b"frontmostApplication")
+            cls._loc_name_sel = objc.sel_registerName(b"localizedName")
+            cls._bid_sel = objc.sel_registerName(b"bundleIdentifier")
         except Exception:
             cls._pb = None
 
@@ -98,15 +115,62 @@ class PasteboardManager:
             print(f"[Flow Bridge Error] Failed to set clipboard: {err}", file=sys.stderr)
             return False
 
-    @staticmethod
-    def get_clipboard() -> str:
-        """Reads current clipboard contents using pbpaste."""
+    @classmethod
+    def get_clipboard(cls) -> str:
+        """Reads current clipboard contents in-process (~0.1ms) with pbpaste fallback."""
+        cls._init_native()
+        if cls._pb and hasattr(cls, "_msg_ptr_ptr") and cls._msg_ptr_ptr:
+            try:
+                ns_str = cls._msg_ptr_ptr(cls._pb, cls._get_sel, cls._type_str)
+                if ns_str:
+                    cstr = ctypes.cast(cls._msg_void_void(ns_str, cls._utf8_str_sel), ctypes.c_char_p).value
+                    if cstr:
+                        return cstr.decode("utf-8", errors="replace")
+            except Exception:
+                pass
+
         try:
             with subprocess.Popen(["pbpaste"], stdout=subprocess.PIPE, close_fds=True) as proc:
                 stdout, _ = proc.communicate(timeout=1.0)
                 return stdout.decode("utf-8", errors="replace")
         except Exception:
             return ""
+
+    @classmethod
+    def get_change_count(cls) -> int:
+        """Returns the system pasteboard changeCount (0.01ms latency)."""
+        cls._init_native()
+        if cls._pb and hasattr(cls, "_msg_int_void") and cls._msg_int_void:
+            try:
+                return int(cls._msg_int_void(cls._pb, cls._change_count_sel))
+            except Exception:
+                pass
+        return 0
+
+    @classmethod
+    def get_frontmost_app(cls) -> dict:
+        """Returns name and bundle identifier of the active frontmost macOS application (~0.05ms)."""
+        cls._init_native()
+        if cls._ws and hasattr(cls, "_msg_void_void") and cls._msg_void_void:
+            try:
+                app = cls._msg_void_void(cls._ws, cls._frontmost_sel)
+                if app:
+                    name_ns = cls._msg_void_void(app, cls._loc_name_sel)
+                    name_str = ""
+                    if name_ns:
+                        cstr = ctypes.cast(cls._msg_void_void(name_ns, cls._utf8_str_sel), ctypes.c_char_p).value
+                        name_str = cstr.decode("utf-8", errors="replace") if cstr else ""
+
+                    bid_ns = cls._msg_void_void(app, cls._bid_sel)
+                    bid_str = ""
+                    if bid_ns:
+                        cstr2 = ctypes.cast(cls._msg_void_void(bid_ns, cls._utf8_str_sel), ctypes.c_char_p).value
+                        bid_str = cstr2.decode("utf-8", errors="replace") if cstr2 else ""
+
+                    return {"name": name_str, "bundle_id": bid_str}
+            except Exception:
+                pass
+        return {"name": "", "bundle_id": ""}
 
 
 class Notifier:

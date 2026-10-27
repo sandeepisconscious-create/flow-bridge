@@ -60,9 +60,9 @@ class ShortcutWatcher:
 
     @classmethod
     def _get_running_dictation_apps(cls) -> Set[str]:
-        """Detects which dictation apps are currently running in the background."""
+        """Detects which dictation apps are currently running in the background (cached for 10s)."""
         now = time.time()
-        if now - cls._last_process_check < 3.0:
+        if now - cls._last_process_check < 10.0:
             return cls._cached_running_apps
         cls._last_process_check = now
 
@@ -96,13 +96,26 @@ class ShortcutWatcher:
         cls._refresh_wispr_config()
         active_apps = cls._get_running_dictation_apps()
 
-        # 1. Wispr Flow: Only inspect if Wispr Flow is running and its exact assigned PTT key is held
-        if "Wispr Flow" in active_apps or (not active_apps and "Gemini" not in active_apps):
+        from flow_bridge_core.platform.pasteboard import PasteboardManager
+        front = PasteboardManager.get_frontmost_app()
+        front_name = front.get("name", "").lower()
+        front_bid = front.get("bundle_id", "").lower()
+        is_gemini_front = ("gemini" in front_name) or ("gemini" in front_bid)
+
+        # 1. If Gemini is frontmost or running with Fn held, check Gemini
+        # (Gemini uses Fn / keycode 63)
+        if "Gemini" in active_apps:
+            if is_gemini_front or ("Wispr Flow" not in active_apps) or cls._wispr_ptt_key != 63:
+                if cg.CGEventSourceKeyState(0, 63) or cg.CGEventSourceKeyState(1, 63):
+                    return "Gemini"
+
+        # 2. Wispr Flow: Only inspect if Wispr Flow is running and its exact assigned PTT key is held
+        if "Wispr Flow" in active_apps:
             # StateSource 0 = CombinedSessionState, 1 = HIDSystemState
             if cg.CGEventSourceKeyState(0, cls._wispr_ptt_key) or cg.CGEventSourceKeyState(1, cls._wispr_ptt_key):
                 return "Wispr Flow"
 
-        # 2. Gemini: Defaults to Fn / Globe key (63) on macOS
+        # 3. Gemini fallback if key 63 held and Gemini is active
         if "Gemini" in active_apps:
             if cg.CGEventSourceKeyState(0, 63) or cg.CGEventSourceKeyState(1, 63):
                 return "Gemini"
