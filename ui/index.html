@@ -1319,7 +1319,7 @@
 
     <footer class="footer">
       <div class="footer-left">
-        <span id="app-version-label">v1.1.6</span>
+        <span id="app-version-label">v1.1.7</span>
         <span>•</span>
         <button class="check-update-link" id="check-update-btn" onclick="manualCheckUpdate()">Check for updates</button>
         <span>•</span>
@@ -1341,7 +1341,7 @@
           <img src="/logo.png" alt="Logo" class="sidebar-brand-icon">
           <div>
             <div class="sidebar-brand-title">Flow Bridge</div>
-            <div class="sidebar-brand-version" id="window-version-badge">Version 1.1.6</div>
+            <div class="sidebar-brand-version" id="window-version-badge">Version 1.1.7</div>
           </div>
         </div>
 
@@ -2190,7 +2190,7 @@
       if (pollTimer) return;
       fetchState();
       pollTimer = setInterval(() => {
-        if (!document.hidden) {
+        if (!document.hidden && document.hasFocus()) {
           fetchState();
         }
       }, 2500);
@@ -2209,6 +2209,15 @@
       } else {
         startPolling();
       }
+    });
+
+    window.addEventListener('focus', () => {
+      fetchState();
+      startPolling();
+    });
+
+    window.addEventListener('blur', () => {
+      stopPolling();
     });
 
     startPolling();

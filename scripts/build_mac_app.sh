@@ -102,18 +102,14 @@ cat <<'EOF' > "$DIST_DIR/launcher.m"
     self.popoverWebView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
     self.popoverWebView.navigationDelegate = self;
     [self.popoverWebView setValue:@NO forKey:@"drawsBackground"];
-    [self.popoverWebView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"http://127.0.0.1:49231"] cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:10.0]];
     [vc.view addSubview:self.popoverWebView];
     
     self.popover.contentViewController = vc;
     self.popover.contentSize = NSMakeSize(540, 580);
     
-    // Main window is lazy-loaded only when requested (saves 150MB RAM and WebKit background threads)
+    // Main window and Popover web content are lazy-loaded only when opened (eliminates idle WebKit polling & timers)
     self.window = nil;
     self.windowWebView = nil;
-
-    // Start background poller to ensure UI loads as soon as server is ready
-    [self pollAndLoadPopover];
 }
 
 - (void)pollAndLoadPopover {
@@ -189,7 +185,7 @@ cat <<'EOF' > "$DIST_DIR/launcher.m"
     }
     NSMenu *menu = [[NSMenu alloc] initWithTitle:@"Flow Bridge"];
     
-    NSMenuItem *header = [[NSMenuItem alloc] initWithTitle:@"Flow Bridge v1.1.6" action:nil keyEquivalent:@""];
+    NSMenuItem *header = [[NSMenuItem alloc] initWithTitle:@"Flow Bridge v1.1.7" action:nil keyEquivalent:@""];
     [header setEnabled:NO];
     [menu addItem:header];
     [menu addItem:[NSMenuItem separatorItem]];
@@ -271,7 +267,7 @@ cat <<'EOF' > "$DIST_DIR/launcher.m"
             NSURL *url = [NSURL URLWithString:@"http://127.0.0.1:49231"];
             [self.popoverWebView loadRequest:[NSURLRequest requestWithURL:url cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:10.0]];
         } else {
-            [self.popoverWebView reload];
+            [self.popoverWebView evaluateJavaScript:@"if (typeof fetchState === 'function') fetchState();" completionHandler:nil];
         }
         [self.popover showRelativeToRect:self.statusItem.button.bounds ofView:self.statusItem.button preferredEdge:NSRectEdgeMinY];
         [NSApp activateIgnoringOtherApps:YES];
@@ -364,9 +360,9 @@ cat <<EOF > "$APP_PATH/Contents/Info.plist"
     <key>CFBundleIdentifier</key>
     <string>com.flowbridge.app</string>
     <key>CFBundleVersion</key>
-    <string>1.1.6</string>
+    <string>1.1.7</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.1.6</string>
+    <string>1.1.7</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleExecutable</key>

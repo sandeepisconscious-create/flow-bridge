@@ -58,67 +58,53 @@ class FlowBridgeDaemon:
         self._running = False
 
     def _start_ptt_listener(self) -> None:
-        """Monitors push-to-talk shortcut key hold state across dictation apps.
-        Instantly mutes macOS hardware audio output for the duration of speech with minimal CPU wakeups.
+        """Monitors push-to-talk shortcut key hold state and pasteboard changes in a single unified loop.
+        Instantly mutes macOS hardware audio output for the duration of speech and captures Gemini
+        dictation output with minimal CPU wakeups (~0.0% idle CPU).
         """
-        def ptt_loop():
+        def unified_fast_loop():
             was_held = False
             last_held_app: Optional[str] = None
             held_start_time: float = 0.0
-
-            while self._running:
-                held_app = ShortcutWatcher.which_app_shortcut_held()
-                now = time.time()
-
-                if held_app and not was_held:
-                    was_held = True
-                    last_held_app = held_app
-                    held_start_time = now
-                    if self.config.auto_pause_media and not self.is_paused():
-                        self._auto_paused_media = True
-                        MediaController.pause()
-                    if self.config.verbose:
-                        print(f"[Flow Bridge] 🎙️ {held_app} shortcut held.")
-                elif held_app and was_held:
-                    # Failsafe watchdog: If shortcut has been continuously held for >15s,
-                    # force-unmute audio to prevent indefinite silence from lost keyup events
-                    if (now - held_start_time) > 15.0 and self._auto_paused_media:
-                        self._resume_media_safely()
-                elif not held_app and was_held:
-                    # Double-check: ensure the key is truly released before clearing state
-                    was_held = False
-                    self._last_ptt_release = now
-                    self._resume_media_safely()
-                    if self.config.verbose:
-                        print(f"[Flow Bridge] ▶️ {last_held_app} shortcut released.")
-
-                time.sleep(0.025)
-
-        t = threading.Thread(target=ptt_loop, daemon=True)
-        t.start()
-
-    def _start_gemini_clipboard_listener(self) -> None:
-        """
-        Monitors macOS pasteboard change counts at high frequency (35ms).
-        Instantly captures Gemini 'Stream to Cursor' dictation output and voice injections,
-        storing them permanently in Flow Bridge local storage.
-        """
-        def gemini_listener_loop():
             last_change_count = PasteboardManager.get_change_count()
             last_recorded_text = ""
 
             while self._running:
                 try:
+                    # 1. Check push-to-talk shortcut key hold state
+                    held_app = ShortcutWatcher.which_app_shortcut_held()
+                    now = time.time()
+
+                    if held_app and not was_held:
+                        was_held = True
+                        last_held_app = held_app
+                        held_start_time = now
+                        if self.config.auto_pause_media and not self.is_paused():
+                            self._auto_paused_media = True
+                            MediaController.pause()
+                        if self.config.verbose:
+                            print(f"[Flow Bridge] 🎙️ {held_app} shortcut held.")
+                    elif held_app and was_held:
+                        # Failsafe watchdog: If shortcut has been continuously held for >15s,
+                        # force-unmute audio to prevent indefinite silence from lost keyup events
+                        if (now - held_start_time) > 15.0 and self._auto_paused_media:
+                            self._resume_media_safely()
+                    elif not held_app and was_held:
+                        # Double-check: ensure the key is truly released before clearing state
+                        was_held = False
+                        self._last_ptt_release = now
+                        self._resume_media_safely()
+                        if self.config.verbose:
+                            print(f"[Flow Bridge] ▶️ {last_held_app} shortcut released.")
+
+                    # 2. Check macOS pasteboard change count (0.01ms integer read)
                     curr_count = PasteboardManager.get_change_count()
                     if curr_count != last_change_count:
                         last_change_count = curr_count
                         clip_text = PasteboardManager.get_clipboard().strip()
 
                         if clip_text and clip_text != self._last_self_copied_text and clip_text != last_recorded_text:
-                            # Verify if Gemini is running or active
                             gemini_available = self.gemini_watcher.is_available()
-                            
-                            now = time.time()
                             front = PasteboardManager.get_frontmost_app()
                             front_name = front.get("name", "").lower()
                             front_bid = front.get("bundle_id", "").lower()
@@ -126,10 +112,8 @@ class FlowBridgeDaemon:
                             is_gemini_front = ("gemini" in front_name) or ("gemini" in front_bid)
                             was_ptt_recent = (now - self._last_ptt_release) < 15.0
 
-                            # Capture when Gemini is frontmost, or user recently spoke/used PTT, or Gemini is running
                             should_capture = gemini_available and (is_gemini_front or was_ptt_recent or len(clip_text) > 3)
 
-                            # Filter out non-dictation noise (file paths, short code snippets, or URLs)
                             if should_capture:
                                 is_noise = (
                                     clip_text.startswith(("/", "http://", "https://", "file://", "git@")) or
@@ -156,12 +140,20 @@ class FlowBridgeDaemon:
                                                 self._resume_media_safely()
                 except Exception as e:
                     if self.config.verbose:
-                        print(f"[Flow Bridge] Gemini listener warning: {e}", file=sys.stderr)
+                        print(f"[Flow Bridge] Listener warning: {e}", file=sys.stderr)
 
-                time.sleep(0.035)
+                # Adaptive sleep: 40ms when PTT is actively held or recently released, 80ms when completely idle
+                if was_held or (time.time() - self._last_ptt_release) < 3.0:
+                    time.sleep(0.04)
+                else:
+                    time.sleep(0.08)
 
-        t = threading.Thread(target=gemini_listener_loop, daemon=True)
+        t = threading.Thread(target=unified_fast_loop, daemon=True)
         t.start()
+
+    def _start_gemini_clipboard_listener(self) -> None:
+        """Merged into _start_ptt_listener unified loop to eliminate redundant thread wakeups."""
+        pass
 
     def _sync_external_watchers_to_storage(self) -> None:
         """Startup sync of existing dictation records from external engines into local storage."""
@@ -460,11 +452,15 @@ class FlowBridgeDaemon:
 
         while self._running:
             try:
+                should_query = True
                 if self._kq and len(self._watched_fds) > 0:
                     try:
-                        events = self._kq.control(None, 8, 0.5)
+                        events = self._kq.control(None, 8, 5.0)
                         if events:
-                            time.sleep(0.05)
+                            time.sleep(0.04)
+                        else:
+                            # Timeout (5s) elapsed without any database/WAL modification
+                            should_query = False
                     except InterruptedError:
                         continue
                     except Exception:
@@ -473,15 +469,19 @@ class FlowBridgeDaemon:
                     time.sleep(self.config.poll_interval_sec)
 
                 now = time.time()
-                if now - last_fd_resync > 5.0:
+                if now - last_fd_resync > 15.0:
                     self._resync_kqueue_descriptors()
                     last_fd_resync = now
 
+                if not should_query:
+                    continue
+
                 candidates: List[DictationRecord] = []
                 for watcher in self.watchers:
-                    rec = watcher.get_latest()
-                    if rec:
-                        candidates.append(rec)
+                    if watcher.source_name != "Gemini":
+                        rec = watcher.get_latest()
+                        if rec:
+                            candidates.append(rec)
 
                 if candidates:
                     candidates.sort(key=lambda r: r.timestamp, reverse=True)

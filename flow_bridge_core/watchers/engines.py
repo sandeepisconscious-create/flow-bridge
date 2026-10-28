@@ -289,9 +289,9 @@ class GeminiWatcher(BaseDictationWatcher):
         self._cached_available: bool = False
 
     def is_available(self) -> bool:
-        """Available if Gemini process is running or has stored records."""
+        """Available if Gemini process is running or has stored records (zero subprocesses)."""
         now = time.time()
-        if now - self._last_avail_check < 5.0:
+        if now - self._last_avail_check < 15.0:
             return self._cached_available
         self._last_avail_check = now
         try:
@@ -299,8 +299,9 @@ class GeminiWatcher(BaseDictationWatcher):
                 self._cached_available = True
                 return True
 
-            out = subprocess.run(["pgrep", "-l", "-i", "gemini"], capture_output=True, text=True, timeout=0.3).stdout
-            self._cached_available = bool("gemini" in out.lower())
+            from flow_bridge_core.platform.pasteboard import PasteboardManager
+            running = PasteboardManager.get_running_dictation_apps()
+            self._cached_available = ("Gemini" in running)
         except Exception:
             self._cached_available = False
         return self._cached_available

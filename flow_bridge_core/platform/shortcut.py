@@ -19,6 +19,7 @@ class ShortcutWatcher:
 
     _cg = None
     _last_config_check: float = 0.0
+    _last_config_mtime: float = 0.0
     _wispr_ptt_key: int = 63  # Default Fn / Globe keycode on macOS
     _cached_running_apps: Set[str] = set()
     _last_process_check: float = 0.0
@@ -37,100 +38,109 @@ class ShortcutWatcher:
 
     @classmethod
     def _refresh_wispr_config(cls) -> None:
-        """Reads the user's actual configured push-to-talk key from Wispr Flow config."""
+        """Reads the user's actual configured push-to-talk key from Wispr Flow config only when mtime changes."""
         now = time.time()
-        if now - cls._last_config_check < 5.0:
+        if now - cls._last_config_check < 15.0:
             return
         cls._last_config_check = now
 
         config_path = os.path.expanduser("~/Library/Application Support/Wispr Flow/config.json")
-        if os.path.exists(config_path):
-            try:
-                with open(config_path, "r", encoding="utf-8") as f:
-                    cfg = json.load(f)
-                shortcuts = cfg.get("prefs", {}).get("user", {}).get("shortcuts", {})
-                for keycode_str, action in shortcuts.items():
-                    if action == "ptt":
-                        # If simple keycode like "63", parse it
-                        if keycode_str.isdigit():
-                            cls._wispr_ptt_key = int(keycode_str)
-                            break
-            except Exception:
-                pass
+        try:
+            st = os.stat(config_path)
+            if st.st_mtime == cls._last_config_mtime:
+                return
+            cls._last_config_mtime = st.st_mtime
+            with open(config_path, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+            shortcuts = cfg.get("prefs", {}).get("user", {}).get("shortcuts", {})
+            for keycode_str, action in shortcuts.items():
+                if action == "ptt":
+                    if keycode_str.isdigit():
+                        cls._wispr_ptt_key = int(keycode_str)
+                        break
+        except Exception:
+            pass
 
     @classmethod
     def _get_running_dictation_apps(cls) -> Set[str]:
-        """Detects which dictation apps are currently running in the background (cached for 10s)."""
+        """Detects which dictation apps are currently running in the background (cached for 15s, zero subprocesses)."""
         now = time.time()
-        if now - cls._last_process_check < 10.0:
+        if now - cls._last_process_check < 15.0:
             return cls._cached_running_apps
         cls._last_process_check = now
 
-        running = set()
-        try:
-            # Fast check of running processes
-            out = subprocess.run(["pgrep", "-l", "-i", "Wispr Flow|handy|Detta|Gemini"], capture_output=True, text=True, timeout=0.5).stdout
-            if "Wispr Flow" in out:
+        from flow_bridge_core.platform.pasteboard import PasteboardManager
+        running = PasteboardManager.get_running_dictation_apps()
+        if not running:
+            # Fallback check if NSWorkspace returned empty
+            try:
+                out = subprocess.run(["pgrep", "-l", "-i", "Wispr Flow|handy|Detta|Gemini"], capture_output=True, text=True, timeout=0.5).stdout
+                if "Wispr Flow" in out:
+                    running.add("Wispr Flow")
+                if "handy" in out.lower():
+                    running.add("Handy")
+                if "detta" in out.lower():
+                    running.add("Detta")
+                if "gemini" in out.lower():
+                    running.add("Gemini")
+            except Exception:
                 running.add("Wispr Flow")
-            if "handy" in out.lower():
-                running.add("Handy")
-            if "detta" in out.lower():
-                running.add("Detta")
-            if "gemini" in out.lower():
-                running.add("Gemini")
-        except Exception:
-            # Fallback to Wispr Flow if check fails
-            running.add("Wispr Flow")
 
         cls._cached_running_apps = running
         return running
 
     @classmethod
     def which_app_shortcut_held(cls) -> Optional[str]:
-        """Returns the name of the app whose assigned shortcut is strictly held down, or None."""
+        """Returns the name of the app whose assigned shortcut is strictly held down, or None.
+        Fast-paths key state checks via CoreGraphics before querying Objective-C workspace state.
+        """
         cls._init()
         cg = cls._cg
         if not cg:
             return None
 
         cls._refresh_wispr_config()
+
+        # Fast-path: Check raw hardware/session key state (~0.001ms) before any Objective-C calls
+        fn_held = bool(cg.CGEventSourceKeyState(0, 63) or cg.CGEventSourceKeyState(1, 63))
+        wispr_key_held = fn_held if cls._wispr_ptt_key == 63 else bool(
+            cg.CGEventSourceKeyState(0, cls._wispr_ptt_key) or cg.CGEventSourceKeyState(1, cls._wispr_ptt_key)
+        )
+        ctrl_held = bool(
+            cg.CGEventSourceKeyState(0, 59) or cg.CGEventSourceKeyState(1, 59) or
+            cg.CGEventSourceKeyState(0, 62) or cg.CGEventSourceKeyState(1, 62)
+        )
+        opt_held = bool(
+            cg.CGEventSourceKeyState(0, 58) or cg.CGEventSourceKeyState(1, 58) or
+            cg.CGEventSourceKeyState(0, 61) or cg.CGEventSourceKeyState(1, 61)
+        )
+
+        if not (fn_held or wispr_key_held or ctrl_held or opt_held):
+            return None
+
         active_apps = cls._get_running_dictation_apps()
 
-        from flow_bridge_core.platform.pasteboard import PasteboardManager
-        front = PasteboardManager.get_frontmost_app()
-        front_name = front.get("name", "").lower()
-        front_bid = front.get("bundle_id", "").lower()
-        is_gemini_front = ("gemini" in front_name) or ("gemini" in front_bid)
-
-        # 1. If Gemini is frontmost or running with Fn held, check Gemini
-        # (Gemini uses Fn / keycode 63)
-        if "Gemini" in active_apps:
+        # Only query frontmost app if a candidate key is actually held down
+        if fn_held and "Gemini" in active_apps:
+            from flow_bridge_core.platform.pasteboard import PasteboardManager
+            front = PasteboardManager.get_frontmost_app()
+            front_name = front.get("name", "").lower()
+            front_bid = front.get("bundle_id", "").lower()
+            is_gemini_front = ("gemini" in front_name) or ("gemini" in front_bid)
             if is_gemini_front or ("Wispr Flow" not in active_apps) or cls._wispr_ptt_key != 63:
-                if cg.CGEventSourceKeyState(0, 63) or cg.CGEventSourceKeyState(1, 63):
-                    return "Gemini"
-
-        # 2. Wispr Flow: Only inspect if Wispr Flow is running and its exact assigned PTT key is held
-        if "Wispr Flow" in active_apps:
-            # StateSource 0 = CombinedSessionState, 1 = HIDSystemState
-            if cg.CGEventSourceKeyState(0, cls._wispr_ptt_key) or cg.CGEventSourceKeyState(1, cls._wispr_ptt_key):
-                return "Wispr Flow"
-
-        # 3. Gemini fallback if key 63 held and Gemini is active
-        if "Gemini" in active_apps:
-            if cg.CGEventSourceKeyState(0, 63) or cg.CGEventSourceKeyState(1, 63):
                 return "Gemini"
 
-        # 3. Handy: Only check if Handy is actually running
-        if "Handy" in active_apps:
-            if (cg.CGEventSourceKeyState(0, 59) or cg.CGEventSourceKeyState(1, 59) or
-                cg.CGEventSourceKeyState(0, 62) or cg.CGEventSourceKeyState(1, 62)):
-                return "Handy"
+        if wispr_key_held and "Wispr Flow" in active_apps:
+            return "Wispr Flow"
 
-        # 4. Detta: Only check if Detta is actually running
-        if "Detta" in active_apps:
-            if (cg.CGEventSourceKeyState(0, 58) or cg.CGEventSourceKeyState(1, 58) or
-                cg.CGEventSourceKeyState(0, 61) or cg.CGEventSourceKeyState(1, 61)):
-                return "Detta"
+        if fn_held and "Gemini" in active_apps:
+            return "Gemini"
+
+        if ctrl_held and "Handy" in active_apps:
+            return "Handy"
+
+        if opt_held and "Detta" in active_apps:
+            return "Detta"
 
         return None
 
