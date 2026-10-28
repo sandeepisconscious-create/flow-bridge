@@ -33,6 +33,8 @@ class ShortcutWatcher:
                     cls._cg = ctypes.cdll.LoadLibrary(cg_path)
                     cls._cg.CGEventSourceKeyState.restype = ctypes.c_bool
                     cls._cg.CGEventSourceKeyState.argtypes = [ctypes.c_int32, ctypes.c_uint16]
+                    cls._cg.CGEventSourceFlagsState.restype = ctypes.c_uint64
+                    cls._cg.CGEventSourceFlagsState.argtypes = [ctypes.c_int32]
             except Exception:
                 cls._cg = False
 
@@ -102,15 +104,22 @@ class ShortcutWatcher:
         cls._refresh_wispr_config()
 
         # Fast-path: Check raw hardware/session key state (~0.001ms) before any Objective-C calls
-        fn_held = bool(cg.CGEventSourceKeyState(0, 63) or cg.CGEventSourceKeyState(1, 63))
+        # For modifier keys (Fn=63, Ctrl=59/62, Opt=58/61), require BOTH key state AND hardware modifier flag
+        # to prevent stale CGEventSourceKeyState from keeping audio muted after release.
+        flags = int(cg.CGEventSourceFlagsState(1)) | int(cg.CGEventSourceFlagsState(0))
+        fn_flag = bool(flags & 0x800000)    # kCGEventFlagMaskSecondaryFn
+        ctrl_flag = bool(flags & 0x40000)   # kCGEventFlagMaskControl
+        opt_flag = bool(flags & 0x80000)    # kCGEventFlagMaskAlternate
+
+        fn_held = fn_flag and bool(cg.CGEventSourceKeyState(0, 63) or cg.CGEventSourceKeyState(1, 63))
         wispr_key_held = fn_held if cls._wispr_ptt_key == 63 else bool(
             cg.CGEventSourceKeyState(0, cls._wispr_ptt_key) or cg.CGEventSourceKeyState(1, cls._wispr_ptt_key)
         )
-        ctrl_held = bool(
+        ctrl_held = ctrl_flag and bool(
             cg.CGEventSourceKeyState(0, 59) or cg.CGEventSourceKeyState(1, 59) or
             cg.CGEventSourceKeyState(0, 62) or cg.CGEventSourceKeyState(1, 62)
         )
-        opt_held = bool(
+        opt_held = opt_flag and bool(
             cg.CGEventSourceKeyState(0, 58) or cg.CGEventSourceKeyState(1, 58) or
             cg.CGEventSourceKeyState(0, 61) or cg.CGEventSourceKeyState(1, 61)
         )

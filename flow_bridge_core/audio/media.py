@@ -84,6 +84,27 @@ class MediaController:
         return dev_ids
 
     @classmethod
+    def is_muted(cls) -> bool:
+        """Returns True if any output audio device is currently hardware-muted."""
+        cls._init()
+        if not cls._ca or not cls._addr_mute:
+            return False
+
+        devices = cls._get_output_devices() | cls._muted_devices
+        for dev_id in devices:
+            try:
+                mute_val = ctypes.c_uint32(0)
+                sz = ctypes.c_uint32(ctypes.sizeof(mute_val))
+                status = cls._ca.AudioObjectGetPropertyData(
+                    dev_id, ctypes.byref(cls._addr_mute), 0, None, ctypes.byref(sz), ctypes.byref(mute_val)
+                )
+                if status == 0 and mute_val.value != 0:
+                    return True
+            except Exception:
+                pass
+        return False
+
+    @classmethod
     def pause(cls) -> bool:
         """Immediately mutes macOS hardware audio output (sub-millisecond instant silence)."""
         cls._init()

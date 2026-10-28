@@ -90,12 +90,20 @@ class FlowBridgeDaemon:
                         if (now - held_start_time) > 15.0 and self._auto_paused_media:
                             self._resume_media_safely()
                     elif not held_app and was_held:
-                        # Double-check: ensure the key is truly released before clearing state
+                        # Key released: immediately unmute audio
                         was_held = False
                         self._last_ptt_release = now
                         self._resume_media_safely()
                         if self.config.verbose:
                             print(f"[Flow Bridge] ▶️ {last_held_app} shortcut released.")
+                    elif not held_app and not was_held:
+                        # Post-release anti-race guard: For 2.5s after PTT release, continuously verify
+                        # hardware mute state in case Wispr Flow's async mute IPC arrived after our unmute
+                        if self._last_ptt_release > 0 and (now - self._last_ptt_release) < 2.5:
+                            if MediaController.is_muted():
+                                MediaController.resume(force=True)
+                                if self.config.verbose:
+                                    print("[Flow Bridge] 🛡️ Cleared late post-release hardware mute.")
 
                     # 2. Check macOS pasteboard change count (0.01ms integer read)
                     curr_count = PasteboardManager.get_change_count()
@@ -112,7 +120,9 @@ class FlowBridgeDaemon:
                             is_gemini_front = ("gemini" in front_name) or ("gemini" in front_bid)
                             was_ptt_recent = (now - self._last_ptt_release) < 15.0
 
-                            should_capture = gemini_available and (is_gemini_front or was_ptt_recent or len(clip_text) > 3)
+                            # Only capture as Gemini when Gemini is the active frontmost app, or when Wispr Flow is not running
+                            wispr_active = "Wispr Flow" in PasteboardManager.get_running_dictation_apps()
+                            should_capture = gemini_available and (is_gemini_front or (was_ptt_recent and not wispr_active))
 
                             if should_capture:
                                 is_noise = (
@@ -136,8 +146,7 @@ class FlowBridgeDaemon:
                                                     subtitle="Gemini Dictation Synced",
                                                     message=clip_text
                                                 )
-                                            if self._auto_paused_media:
-                                                self._resume_media_safely()
+                                            self._resume_media_safely()
                 except Exception as e:
                     if self.config.verbose:
                         print(f"[Flow Bridge] Listener warning: {e}", file=sys.stderr)
@@ -514,9 +523,10 @@ class FlowBridgeDaemon:
                                     message=winner.text
                                 )
 
-                            if self._auto_paused_media:
-                                self._resume_media_safely()
-                        elif self.config.verbose:
+                        # Unconditionally ensure audio is unmuted once a dictation transcript is finalized
+                        if not ShortcutWatcher.is_shortcut_held():
+                            self._resume_media_safely()
+                        if self.is_paused() and self.config.verbose:
                             print(f"[Flow Bridge] Skipped sync because Flow Bridge is paused: {winner.unique_id}")
 
             except KeyboardInterrupt:
