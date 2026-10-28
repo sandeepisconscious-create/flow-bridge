@@ -64,25 +64,35 @@ class FlowBridgeDaemon:
         def ptt_loop():
             was_held = False
             last_held_app: Optional[str] = None
+            held_start_time: float = 0.0
 
             while self._running:
                 held_app = ShortcutWatcher.which_app_shortcut_held()
+                now = time.time()
+
                 if held_app and not was_held:
                     was_held = True
                     last_held_app = held_app
+                    held_start_time = now
                     if self.config.auto_pause_media and not self.is_paused():
                         self._auto_paused_media = True
                         MediaController.pause()
                     if self.config.verbose:
                         print(f"[Flow Bridge] 🎙️ {held_app} shortcut held.")
+                elif held_app and was_held:
+                    # Failsafe watchdog: If shortcut has been continuously held for >15s,
+                    # force-unmute audio to prevent indefinite silence from lost keyup events
+                    if (now - held_start_time) > 15.0 and self._auto_paused_media:
+                        self._resume_media_safely()
                 elif not held_app and was_held:
+                    # Double-check: ensure the key is truly released before clearing state
                     was_held = False
-                    self._last_ptt_release = time.time()
+                    self._last_ptt_release = now
                     self._resume_media_safely()
                     if self.config.verbose:
                         print(f"[Flow Bridge] ▶️ {last_held_app} shortcut released.")
 
-                time.sleep(0.08)
+                time.sleep(0.025)
 
         t = threading.Thread(target=ptt_loop, daemon=True)
         t.start()
@@ -185,11 +195,10 @@ class FlowBridgeDaemon:
                 pass
 
     def _resume_media_safely(self) -> None:
-        if self._auto_paused_media:
-            MediaController.resume()
-            self._auto_paused_media = False
-            if self.config.verbose:
-                print("[Flow Bridge] ▶️ Shortcut released / dictation ended -> Unmuted audio.")
+        self._auto_paused_media = False
+        MediaController.resume(force=True)
+        if self.config.verbose:
+            print("[Flow Bridge] ▶️ Shortcut released / dictation ended -> Unmuted audio.")
 
     def set_paused(self, paused: bool) -> bool:
         self._paused = paused

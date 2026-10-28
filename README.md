@@ -5,8 +5,8 @@
   <em>Speak into Wispr Flow, Google Gemini, Handy, or Detta — then press <code>⌘ + V</code> anywhere to paste.</em></p>
 
   <p>
-    <a href="https://github.com/sandeepisconscious-create/flow-bridge/releases/download/v1.1.5/FlowBridge-Installer.dmg">
-      <img src="https://img.shields.io/badge/Download-macOS%20DMG%20(v1.1.5)-007AFF?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS DMG" />
+    <a href="https://github.com/sandeepisconscious-create/flow-bridge/releases/download/v1.1.6/FlowBridge-Installer.dmg">
+      <img src="https://img.shields.io/badge/Download-macOS%20DMG%20(v1.1.6)-007AFF?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS DMG" />
     </a>
   </p>
 
@@ -115,7 +115,7 @@ Flow Bridge incorporates background polling and resilient WebKit navigation dele
 ## 🚀 Installation & Setup
 
 ### Method 1: Mac Drag-and-Drop Installer (Recommended)
-1. Download **[FlowBridge-Installer.dmg (v1.1.5)](https://github.com/sandeepisconscious-create/flow-bridge/releases/download/v1.1.5/FlowBridge-Installer.dmg)**.
+1. Download **[FlowBridge-Installer.dmg (v1.1.6)](https://github.com/sandeepisconscious-create/flow-bridge/releases/download/v1.1.6/FlowBridge-Installer.dmg)**.
 2. Open the downloaded DMG and drag **FlowBridge** into your **Applications** folder.
 3. **First-Time Launch (macOS Gatekeeper)**:
    - If macOS displays *"Apple could not verify FlowBridge..."*, click **Done**.
